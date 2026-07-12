@@ -74,10 +74,43 @@
                   width: 44px; min-width: 44px; height: 44px; padding: 0; border-radius: 50%;
                   font-size: 19px; z-index: 3; }
     #journalBtn:active { transform: scale(0.9); }
-    #jCount { position: absolute; top: -4px; right: -4px; min-width: 18px; height: 18px; padding: 0 4px;
+    #jCount, #aCount { position: absolute; top: -4px; right: -4px; min-width: 18px; height: 18px; padding: 0 4px;
               background: var(--accent); color: #fff; font-size: 11px; font-weight: 700; border-radius: 9px;
               display: none; align-items: center; justify-content: center; }
-    #jCount.show { display: flex; }
+    #jCount.show, #aCount.show { display: flex; }
+    #achBtn { position: absolute; top: 122px; right: 14px; bottom: auto; left: auto; transform: none;
+              width: 44px; min-width: 44px; height: 44px; padding: 0; border-radius: 50%; font-size: 19px; z-index: 3; }
+    #achBtn:active { transform: scale(0.9); }
+
+    /* achievement toasts (top-center, auto-dismiss) */
+    #achToasts { position: absolute; top: 130px; left: 0; right: 0; z-index: 7;
+                 display: flex; flex-direction: column; align-items: center; gap: 8px; pointer-events: none; }
+    .achToast { display: flex; align-items: center; gap: 12px; background: #fff; border-radius: 18px;
+                padding: 10px 18px 10px 12px; box-shadow: 0 12px 34px rgba(60,50,90,0.28);
+                transform: translateY(-18px); opacity: 0; transition: all .38s cubic-bezier(.22,1,.36,1); }
+    .achToast.show { transform: none; opacity: 1; }
+    .achToast .ic { width: 42px; height: 42px; border-radius: 12px; background: #f1eefe;
+                    display: flex; align-items: center; justify-content: center; font-size: 23px; }
+    .achToast .t1 { font-size: 11px; font-weight: 700; color: var(--accent); letter-spacing: .4px; }
+    .achToast .t2 { font-size: 15px; font-weight: 600; color: var(--ink); }
+
+    /* achievements collection sheet */
+    #achSheet { position: absolute; left: 12px; right: 12px; bottom: 12px; z-index: 6; max-height: 78%;
+                overflow-y: auto; background: #fff; border-radius: 26px; padding: 18px 18px 20px;
+                box-shadow: 0 16px 50px rgba(60,50,90,0.34);
+                transform: translateY(200%); transition: transform .5s cubic-bezier(.22,1,.36,1); }
+    #achSheet.open { transform: none; }
+    #aClose { border: none; background: #efe9ff; color: var(--accent); font-weight: 600; font-size: 14px;
+              padding: 9px 18px; border-radius: 14px; cursor: pointer; }
+    #aGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .aCard { position: relative; background: #f6f4fc; border-radius: 18px; padding: 16px 12px; text-align: center; }
+    .aCard.locked { opacity: 0.55; }
+    .aCard .aic { font-size: 32px; line-height: 1; }
+    .aCard.locked .aic { filter: grayscale(1); }
+    .aCard .anm { font-size: 13.5px; font-weight: 700; color: var(--ink); margin-top: 9px; }
+    .aCard .ads { font-size: 11.5px; color: #8b86a0; margin-top: 3px; line-height: 1.3; }
+    .aCard .achk { position: absolute; top: 10px; right: 10px; width: 20px; height: 20px; border-radius: 50%;
+                   background: var(--accent); color: #fff; font-size: 12px; display: flex; align-items: center; justify-content: center; }
     #hint { bottom: 96px; }
     #rideBtn { position: absolute; bottom: 26px; left: 50%; transform: translateX(-50%); z-index: 3;
                height: 52px; padding: 0 28px; border: none; border-radius: 26px; background: var(--accent);
@@ -101,9 +134,9 @@
     .stat .l { font-size: 11.5px; color: #8b86a0; margin-top: 6px; font-weight: 600; }
 
     /* scrim shared by modals */
-    #placeScrim, #journalScrim { position: absolute; inset: 0; z-index: 5; background: rgba(40,34,60,0.32);
+    #placeScrim, #journalScrim, #achScrim { position: absolute; inset: 0; z-index: 5; background: rgba(40,34,60,0.32);
       opacity: 0; pointer-events: none; transition: opacity .3s; }
-    #placeScrim.open, #journalScrim.open { opacity: 1; pointer-events: auto; }
+    #placeScrim.open, #journalScrim.open, #achScrim.open { opacity: 1; pointer-events: auto; }
 
     /* new-place discovery card */
     #placeCard { position: absolute; left: 12px; right: 12px; bottom: 12px; z-index: 6;
@@ -155,6 +188,8 @@
     </div>
   </div>
   <button id="journalBtn" class="round" title="Журнал">📖<span id="jCount"></span></button>
+  <button id="achBtn" class="round" title="Ачивки">🏆<span id="aCount"></span></button>
+  <div id="achToasts"></div>
 
   <div id="rightStack">
     <button id="cloudBtn" class="round" title="Показать/скрыть облака">☁️</button>
@@ -198,6 +233,16 @@
     </div>
     <div id="jList"></div>
     <div id="jEmpty">Пока пусто. Открывай новые места в поездке и прикрепляй фото или заметку.</div>
+  </div>
+
+  <!-- Achievements collection -->
+  <div id="achScrim"></div>
+  <div id="achSheet">
+    <div class="sheetHead">
+      <div class="sheetTitle">🏆 Ачивки</div>
+      <button id="aClose">Закрыть</button>
+    </div>
+    <div id="aGrid"></div>
   </div>
 
   <input type="file" id="photoInput" accept="image/*" style="display:none" />
@@ -469,10 +514,10 @@
 
       // Notable spots along the Da Nang route — surfaced when the rider passes near.
       const PLACES = [
-        { name: 'Рынок Хан', cat: 'Рынок · Chợ Hàn', emoji: '🛍️', lon: 108.2250, lat: 16.0685 },
-        { name: 'Мост Дракона', cat: 'Достопримечательность · Cầu Rồng', emoji: '🐉', lon: 108.2270, lat: 16.0614 },
-        { name: 'Пляж Ми Кхе', cat: 'Пляж · Bãi biển Mỹ Khê', emoji: '🏖️', lon: 108.2468, lat: 16.0598 },
-        { name: 'Парк Бьен Донг', cat: 'Набережная · Biển Đông', emoji: '🌊', lon: 108.2455, lat: 16.0700 },
+        { name: 'Рынок Хан', cat: 'Рынок · Chợ Hàn', type: 'Рынок', emoji: '🛍️', lon: 108.2250, lat: 16.0685 },
+        { name: 'Мост Дракона', cat: 'Достопримечательность · Cầu Rồng', type: 'Достопримечательность', emoji: '🐉', lon: 108.2270, lat: 16.0614 },
+        { name: 'Пляж Ми Кхе', cat: 'Пляж · Bãi biển Mỹ Khê', type: 'Пляж', emoji: '🏖️', lon: 108.2468, lat: 16.0598 },
+        { name: 'Парк Бьен Донг', cat: 'Набережная · Biển Đông', type: 'Набережная', emoji: '🌊', lon: 108.2455, lat: 16.0700 },
       ];
 
       function revealTo(d) {
@@ -500,6 +545,8 @@
         $('s-dist').textContent = d.toFixed(1);
         $('s-cells').textContent = Math.round(fog.features.length * rideP);
         $('s-time').textContent = fmt(rideP * RIDE_MS / 1000);
+        progress.cells = Math.round(fog.features.length * rideP);
+        evalAch(false);
         // discover any place the just-travelled segment passed near (robust to big steps)
         let seg = null;
         if (d > prevD + 0.005) { try { seg = turf.lineSliceAlong(track, prevD, d, { units: 'kilometers' }); } catch (e) {} }
@@ -545,6 +592,9 @@
         $('sheet').classList.remove('open');
         $('rideBtn').style.display = '';
         cloudBtn.style.display = '';
+        progress.sessions += 1;
+        if (done) progress.cov = Math.max(progress.cov, 0.15);
+        evalAch(false);
         if (done) hint('Поездка записана · +' + fog.features.length + ' ячеек');
         map.triggerRepaint();
       }
@@ -559,6 +609,7 @@
       function openPlace(pl) {
         paused = true; if (rafId) cancelAnimationFrame(rafId);
         pendingPlace = pl;
+        progress.cats.add(pl.type); evalAch(false);
         $('pcName').textContent = pl.name;
         $('pcCat').textContent = pl.cat;
         $('sheet').classList.remove('open');
@@ -610,6 +661,59 @@
       $('journalBtn').onclick = () => { renderJournal(); $('journalScrim').classList.add('open'); $('journalSheet').classList.add('open'); };
       $('jClose').onclick = closeJournal;
       $('journalScrim').onclick = closeJournal;
+
+      // ── Feature 3: achievements (data-driven, mirrors AchievementEngine) ──
+      const ACHIEVEMENTS = [
+        { id: 'cells10', icon: '🌱', title: 'Первопроходец', details: 'Открой 10 ячеек', cond: { cells: 10 } },
+        { id: 'cells25', icon: '🧭', title: 'Исследователь', details: 'Открой 25 ячеек', cond: { cells: 25 } },
+        { id: 'cells50', icon: '🗺️', title: 'Картограф', details: 'Открой 50 ячеек', cond: { cells: 50 } },
+        { id: 'cov15',   icon: '🏙️', title: 'Свой в городе', details: 'Открой 15% Дананга', cond: { cov: 0.15 } },
+        { id: 'catSight',icon: '📸', title: 'Турист', details: 'Открой достопримечательность', cond: { cat: 'Достопримечательность' } },
+        { id: 'catBeach',icon: '🏖️', title: 'К морю!', details: 'Побывай на пляже', cond: { cat: 'Пляж' } },
+        { id: 'ride1',   icon: '🚲', title: 'Первая поездка', details: 'Заверши первую поездку', cond: { sessions: 1 } },
+      ];
+      const progress = { cells: 0, cov: 0, cats: new Set(), sessions: 0 };
+      const unlocked = new Set();
+      const satisfied = a => {
+        const c = a.cond;
+        if (c.cells != null) return progress.cells >= c.cells;
+        if (c.cov != null) return progress.cov >= c.cov;
+        if (c.cat != null) return progress.cats.has(c.cat);
+        if (c.sessions != null) return progress.sessions >= c.sessions;
+        return false;
+      };
+      function evalAch(silent) {
+        ACHIEVEMENTS.forEach(a => {
+          if (!unlocked.has(a.id) && satisfied(a)) { unlocked.add(a.id); if (!silent) toastAch(a); }
+        });
+        const b = $('aCount');
+        b.textContent = unlocked.size;
+        b.classList.toggle('show', unlocked.size > 0);
+      }
+      function toastAch(a) {
+        const el = document.createElement('div');
+        el.className = 'achToast';
+        el.innerHTML = '<div class="ic">' + a.icon + '</div><div><div class="t1">НОВАЯ АЧИВКА</div><div class="t2">' + a.title + '</div></div>';
+        $('achToasts').appendChild(el);
+        setTimeout(() => el.classList.add('show'), 20);
+        setTimeout(() => { el.classList.remove('show'); setTimeout(() => el.remove(), 450); }, 3400);
+      }
+      function renderAch() {
+        const grid = $('aGrid'); grid.innerHTML = '';
+        ACHIEVEMENTS.forEach(a => {
+          const on = unlocked.has(a.id);
+          const c = document.createElement('div');
+          c.className = 'aCard' + (on ? '' : ' locked');
+          c.innerHTML = (on ? '<div class="achk">✓</div>' : '') +
+            '<div class="aic">' + a.icon + '</div><div class="anm">' + a.title + '</div>' +
+            '<div class="ads">' + (on ? 'Получено' : a.details) + '</div>';
+          grid.appendChild(c);
+        });
+      }
+      function closeAch() { $('achSheet').classList.remove('open'); $('achScrim').classList.remove('open'); }
+      $('achBtn').onclick = () => { renderAch(); $('achScrim').classList.add('open'); $('achSheet').classList.add('open'); };
+      $('aClose').onclick = closeAch;
+      $('achScrim').onclick = closeAch;
 
       // ── Geolocation ──
       document.getElementById('me').onclick = () => {
