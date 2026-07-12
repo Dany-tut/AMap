@@ -22,4 +22,14 @@ public struct AppComposition {
         let session = Session(startedAt: .now, activity: activity)
         return SessionRecorder(session: session, fog: fog)
     }
+
+    /// Reconcile with other devices: pull remote cells, merge (conflict-free),
+    /// then push whatever was opened locally. Returns the advanced sync token.
+    public func sync(using cloud: CloudSync, from token: SyncToken?) async throws -> SyncToken {
+        let (remote, newToken) = try await cloud.pull(since: token)
+        fog.merge(remote)
+        try store.insert(cells: remote)
+        try await cloud.push(fog.allVisited())
+        return newToken
+    }
 }

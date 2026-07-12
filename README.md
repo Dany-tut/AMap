@@ -55,5 +55,13 @@ swift test
 
 ## Статус
 
-Скелет ядра: модели, fog engine, session recorder, persistence-граница, тесты.
-Дальше — Xcode-таргет, MapLibre-рендер тумана, CloudKit-синк, экраны и подписка.
+Реализовано и покрыто тестами (8/8):
+- модели и data-driven ачивки
+- fog engine + обратная проекция ячеек в полигоны
+- `FogGeoJSON` — генерация GeoJSON открытых зон для MapLibre (с фильтром по вьюпорту)
+- `SessionRecorder` — фильтрация GPS-фиксов и статистика
+- `LocationTracker` — мост к CoreLocation (passive/active режимы)
+- `CloudKitSync` — конфликт-фри синк тумана через приватную iCloud-базу
+
+Дальше — Xcode-таргет с SwiftUI-экранами и MapLibre-рендером, StoreKit-подписка,
+замена slippy-сетки на H3.

@@ -17,4 +17,21 @@ public struct SlippyGrid: GridProjection {
         let packed = (UInt64(zoom) << 58) | (x << 29) | (y & 0x1FFFFFFF)
         return CellIndex(rawValue: packed)
     }
+
+    public func polygon(for index: CellIndex) -> [Coordinate] {
+        let z = Int((index.rawValue >> 58) & 0x1F)
+        let x = Double((index.rawValue >> 29) & 0x1FFFFFFF)
+        let y = Double(index.rawValue & 0x1FFFFFFF)
+        // A tile spans [x, x+1] x [y, y+1]; return its four corners (lon/lat).
+        return [(x, y), (x + 1, y), (x + 1, y + 1), (x, y + 1)].map { tx, ty in
+            lonLat(tileX: tx, tileY: ty, zoom: z)
+        }
+    }
+
+    private func lonLat(tileX: Double, tileY: Double, zoom: Int) -> Coordinate {
+        let n = Double(1 << zoom)
+        let lon = tileX / n * 360.0 - 180.0
+        let lat = atan(sinh(.pi * (1.0 - 2.0 * tileY / n))) * 180.0 / .pi
+        return Coordinate(latitude: lat, longitude: lon)
+    }
 }

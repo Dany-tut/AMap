@@ -6,6 +6,9 @@ import AMapsDomain
 /// can be exercised without the C library.
 public protocol GridProjection: Sendable {
     func cell(for coordinate: Coordinate) -> CellIndex
+    /// The cell's boundary as a closed ring of coordinates (first != last).
+    /// Used to render the revealed area on the map.
+    func polygon(for index: CellIndex) -> [Coordinate]
 }
 
 /// Tracks which grid cells have ever been explored. A visited cell is a single

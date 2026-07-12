@@ -36,6 +36,41 @@ import Foundation
     }
 }
 
+@Suite struct FogGeoJSONTests {
+    let grid = SlippyGrid(zoom: 17)
+
+    @Test func emitsClosedPolygonPerCell() throws {
+        let fog = FogEngine(grid: grid)
+        let c = Coordinate(latitude: 21.0278, longitude: 105.8342)
+        fog.observe(c, at: .now, activity: .cycling)
+        let json = FogGeoJSON(grid: grid).featureCollection(for: fog.allVisited())
+        let features = json["features"] as! [[String: Any]]
+        #expect(features.count == 1)
+        let geom = features[0]["geometry"] as! [String: Any]
+        let ring = (geom["coordinates"] as! [[[Double]]])[0]
+        #expect(ring.count == 5)          // 4 corners + closing point
+        #expect(ring.first! == ring.last!) // ring is closed
+    }
+
+    @Test func viewportFiltersDistantCells() {
+        let fog = FogEngine(grid: grid)
+        fog.observe(Coordinate(latitude: 21.0, longitude: 105.0), at: .now, activity: .walking)
+        fog.observe(Coordinate(latitude: 51.5, longitude: -0.12), at: .now, activity: .walking)
+        let hanoiBox = BoundingBox(minLat: 20.9, minLon: 104.9, maxLat: 21.1, maxLon: 105.1)
+        let json = FogGeoJSON(grid: grid).featureCollection(for: fog.allVisited(), within: hanoiBox)
+        #expect((json["features"] as! [[String: Any]]).count == 1)
+    }
+
+    @Test func polygonRoundTripsNearOrigin() {
+        let c = Coordinate(latitude: 21.0278, longitude: 105.8342)
+        let ring = grid.polygon(for: grid.cell(for: c))
+        // The originating point must fall inside the returned tile bounds.
+        let lats = ring.map(\.latitude), lons = ring.map(\.longitude)
+        #expect(c.latitude <= lats.max()! && c.latitude >= lats.min()!)
+        #expect(c.longitude >= lons.min()! && c.longitude <= lons.max()!)
+    }
+}
+
 @Suite struct SessionRecorderTests {
     @Test func rejectsInaccurateFixes() {
         let fog = FogEngine(grid: SlippyGrid())
