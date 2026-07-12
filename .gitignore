@@ -6,3 +6,10 @@ xcuserdata/
 DerivedData/
 .swiftpm/
 *.pmtiles
+
+# Locally cached OSM tiles for the web preview (regenerable)
+web/tiles/
+web/fog.geojson
+web/meta.json
+web/route.json
+web/track.geojson

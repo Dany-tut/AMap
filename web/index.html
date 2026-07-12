@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>AMaps — туман войны</title>
+  <link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet" />
+  <style>
+    :root {
+      --ink: #3a3550;          /* soft dark text */
+      --card: rgba(255,255,255,0.9);
+      --accent: #7c6cf0;       /* Zenly-ish violet */
+    }
+    html, body { margin: 0; height: 100%; background: #cfe3ec;
+                 font-family: -apple-system, "SF Pro Rounded", system-ui, sans-serif;
+                 -webkit-user-select: none; user-select: none; }
+    #map { position: absolute; inset: 0; }
+
+    /* ── top overlay ── */
+    #top { position: absolute; top: 14px; left: 14px; right: 14px; z-index: 2;
+           display: flex; flex-direction: column; gap: 9px; pointer-events: none; }
+    #searchRow { display: flex; gap: 9px; pointer-events: auto; }
+    #q { flex: 1; height: 44px; border: none; border-radius: 22px; padding: 0 18px;
+         font-size: 15px; background: var(--card); color: var(--ink); font-weight: 500;
+         box-shadow: 0 6px 20px rgba(60,50,90,0.16); outline: none;
+         backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+    #q::placeholder { color: #a29fb5; font-weight: 500; }
+    .round { height: 44px; min-width: 44px; padding: 0; border: none; border-radius: 50%;
+             background: var(--card); color: var(--ink); font-size: 19px; cursor: pointer;
+             box-shadow: 0 6px 20px rgba(60,50,90,0.16); display: flex; align-items: center;
+             justify-content: center; backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+             transition: transform .12s; }
+    .round:active { transform: scale(0.9); }
+
+    #pills { display: flex; gap: 8px; flex-wrap: wrap; pointer-events: none; padding-right: 54px; }
+    .pill { background: var(--card); color: var(--ink); border-radius: 16px;
+            padding: 8px 14px; font-size: 13.5px; font-weight: 600;
+            box-shadow: 0 4px 14px rgba(60,50,90,0.14);
+            backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+            display: flex; align-items: center; gap: 6px; }
+    .pill b { color: var(--accent); }
+
+    /* ── bottom controls ── */
+    #cloudBtn { position: absolute; bottom: 26px; left: 50%; transform: translateX(-50%);
+                z-index: 3; height: 46px; padding: 0 22px; border: none; border-radius: 23px;
+                background: rgba(255,255,255,0.94); color: var(--ink); font-size: 15px;
+                font-weight: 600; cursor: pointer; box-shadow: 0 8px 24px rgba(60,50,90,0.22);
+                display: flex; align-items: center; gap: 8px; backdrop-filter: blur(12px);
+                -webkit-backdrop-filter: blur(12px); transition: transform .12s; }
+    #cloudBtn:active { transform: translateX(-50%) scale(0.94); }
+    #cloudBtn.off { background: rgba(58,53,80,0.92); color: #fff; }
+
+    #hint { position: absolute; bottom: 84px; left: 50%; transform: translateX(-50%);
+            z-index: 2; font-size: 13px; font-weight: 500; color: #fff; white-space: nowrap;
+            background: rgba(58,53,80,0.86); padding: 8px 15px; border-radius: 16px;
+            opacity: 0; transition: opacity .3s; pointer-events: none;
+            backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+    #hint.show { opacity: 1; }
+
+    .maplibregl-ctrl-attrib { font-size: 10px; border-radius: 10px 0 0 0 !important; }
+
+    /* right-side control stack: layers + custom zoom */
+    #rightStack { position: absolute; right: 14px; bottom: 26px; z-index: 3;
+                  display: flex; flex-direction: column; gap: 10px; align-items: center; }
+    #rightStack #cloudBtn { position: static; top: auto; right: auto; bottom: auto; left: auto;
+                            transform: none; width: 46px; min-width: 46px; height: 46px;
+                            padding: 0; border-radius: 50%; font-size: 20px; margin-bottom: 4px; }
+    #rightStack .zbtn { width: 46px; min-width: 46px; height: 46px; padding: 0; border-radius: 50%;
+                        font-size: 24px; font-weight: 500; line-height: 1; }
+    #rightStack .round:active { transform: scale(0.9); }
+
+    /* journal button — top-right stack under the location dot */
+    #journalBtn { position: absolute; top: 70px; right: 14px; bottom: auto; left: auto; transform: none;
+                  width: 44px; min-width: 44px; height: 44px; padding: 0; border-radius: 50%;
+                  font-size: 19px; z-index: 3; }
+    #journalBtn:active { transform: scale(0.9); }
+    #jCount { position: absolute; top: -4px; right: -4px; min-width: 18px; height: 18px; padding: 0 4px;
+              background: var(--accent); color: #fff; font-size: 11px; font-weight: 700; border-radius: 9px;
+              display: none; align-items: center; justify-content: center; }
+    #jCount.show { display: flex; }
+    #hint { bottom: 96px; }
+    #rideBtn { position: absolute; bottom: 26px; left: 50%; transform: translateX(-50%); z-index: 3;
+               height: 52px; padding: 0 28px; border: none; border-radius: 26px; background: var(--accent);
+               color: #fff; font-size: 16px; font-weight: 600; cursor: pointer;
+               box-shadow: 0 10px 28px rgba(124,108,240,0.45); display: flex; align-items: center; gap: 8px;
+               transition: transform .12s; }
+    #rideBtn:active { transform: translateX(-50%) scale(0.94); }
+    #sheet { position: absolute; left: 12px; right: 12px; bottom: 12px; z-index: 4;
+             background: rgba(255,255,255,0.97); border-radius: 24px; padding: 16px 18px 18px;
+             box-shadow: 0 12px 40px rgba(60,50,90,0.28);
+             backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+             transform: translateY(170%); transition: transform .45s cubic-bezier(.22,1,.36,1); }
+    #sheet.open { transform: none; }
+    .sheetHead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+    .sheetTitle { font-size: 17px; font-weight: 600; color: var(--ink); }
+    #stopBtn { border: none; background: #efe9ff; color: var(--accent); font-weight: 600; font-size: 14px;
+               padding: 9px 20px; border-radius: 14px; cursor: pointer; }
+    .stats { display: flex; gap: 10px; }
+    .stat { flex: 1; background: #f4f2fb; border-radius: 16px; padding: 12px 8px; text-align: center; }
+    .stat .v { font-size: 24px; font-weight: 700; color: var(--accent); line-height: 1; }
+    .stat .l { font-size: 11.5px; color: #8b86a0; margin-top: 6px; font-weight: 600; }
+
+    /* scrim shared by modals */
+    #placeScrim, #journalScrim { position: absolute; inset: 0; z-index: 5; background: rgba(40,34,60,0.32);
+      opacity: 0; pointer-events: none; transition: opacity .3s; }
+    #placeScrim.open, #journalScrim.open { opacity: 1; pointer-events: auto; }
+
+    /* new-place discovery card */
+    #placeCard { position: absolute; left: 12px; right: 12px; bottom: 12px; z-index: 6;
+      background: #fff; border-radius: 26px; padding: 22px 20px 18px; text-align: center;
+      box-shadow: 0 16px 50px rgba(60,50,90,0.34);
+      transform: translateY(180%); transition: transform .5s cubic-bezier(.22,1,.36,1); }
+    #placeCard.open { transform: none; }
+    .pcHead { margin-bottom: 10px; }
+    .pcNew { background: var(--accent); color: #fff; font-size: 12px; font-weight: 700;
+      padding: 5px 13px; border-radius: 12px; letter-spacing: .3px; }
+    .pcName { font-size: 23px; font-weight: 700; color: var(--ink); margin: 12px 0 3px; }
+    .pcCat { font-size: 14px; color: #8b86a0; font-weight: 500; margin-bottom: 18px; }
+    .pcActions { display: flex; gap: 10px; margin-bottom: 10px; }
+    .pcBtn { flex: 1; height: 52px; border: none; border-radius: 16px; background: #f1eefe;
+      color: var(--accent); font-size: 15px; font-weight: 600; cursor: pointer; }
+    .pcBtn:active { transform: scale(0.97); }
+    .pcSkip { width: 100%; height: 46px; border: none; background: none; color: #8b86a0;
+      font-size: 14px; font-weight: 600; cursor: pointer; }
+
+    /* journal sheet */
+    #journalSheet { position: absolute; left: 12px; right: 12px; bottom: 12px; z-index: 6;
+      max-height: 76%; overflow-y: auto; background: #fff; border-radius: 26px; padding: 18px 18px 20px;
+      box-shadow: 0 16px 50px rgba(60,50,90,0.34);
+      transform: translateY(190%); transition: transform .5s cubic-bezier(.22,1,.36,1); }
+    #journalSheet.open { transform: none; }
+    #jClose { border: none; background: #efe9ff; color: var(--accent); font-weight: 600; font-size: 14px;
+      padding: 9px 18px; border-radius: 14px; cursor: pointer; }
+    .jItem { display: flex; gap: 12px; align-items: center; padding: 12px 0; border-top: 1px solid #f0eef6; }
+    .jItem:first-child { border-top: none; }
+    .jThumb { width: 52px; height: 52px; border-radius: 14px; object-fit: cover; flex-shrink: 0;
+      background: #f1eefe; display: flex; align-items: center; justify-content: center; font-size: 22px; }
+    .jBody { flex: 1; min-width: 0; }
+    .jName { font-size: 15px; font-weight: 600; color: var(--ink); }
+    .jText { font-size: 13px; color: #8b86a0; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    #jEmpty { color: #a29fb5; font-size: 14px; line-height: 1.5; padding: 10px 2px 4px; }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  <div id="top">
+    <div id="searchRow">
+      <input id="q" placeholder="Найти место или адрес…" autocomplete="off" />
+      <button class="round" id="me" title="Моё местоположение">◎</button>
+    </div>
+    <div id="pills">
+      <div class="pill">🗺️ Дананг · <b id="cov">—</b></div>
+      <div class="pill">🔥 <b id="cnt">—</b> ячеек</div>
+      <div class="pill">🚲 велопрогулка</div>
+    </div>
+  </div>
+  <button id="journalBtn" class="round" title="Журнал">📖<span id="jCount"></span></button>
+
+  <div id="rightStack">
+    <button id="cloudBtn" class="round" title="Показать/скрыть облака">☁️</button>
+    <button id="zin" class="round zbtn" title="Приблизить">+</button>
+    <button id="zout" class="round zbtn" title="Отдалить">−</button>
+  </div>
+
+  <button id="rideBtn">▶ Поехали</button>
+
+  <div id="sheet">
+    <div class="sheetHead">
+      <div class="sheetTitle">🚲 Поездка</div>
+      <button id="stopBtn">Стоп</button>
+    </div>
+    <div class="stats">
+      <div class="stat"><div class="v" id="s-dist">0.0</div><div class="l">км</div></div>
+      <div class="stat"><div class="v" id="s-cells">0</div><div class="l">новых ячеек</div></div>
+      <div class="stat"><div class="v" id="s-time">0:00</div><div class="l">время</div></div>
+    </div>
+  </div>
+
+  <!-- New-place discovery card -->
+  <div id="placeScrim"></div>
+  <div id="placeCard">
+    <div class="pcHead"><span class="pcNew">Новое место</span></div>
+    <div class="pcName" id="pcName">—</div>
+    <div class="pcCat" id="pcCat">—</div>
+    <div class="pcActions">
+      <button id="pcPhoto" class="pcBtn">📷 Фото</button>
+      <button id="pcNote" class="pcBtn">✏️ Заметка</button>
+    </div>
+    <button id="pcSkip" class="pcSkip">Продолжить поездку</button>
+  </div>
+
+  <!-- Journal viewer -->
+  <div id="journalScrim"></div>
+  <div id="journalSheet">
+    <div class="sheetHead">
+      <div class="sheetTitle">📖 Журнал</div>
+      <button id="jClose">Закрыть</button>
+    </div>
+    <div id="jList"></div>
+    <div id="jEmpty">Пока пусто. Открывай новые места в поездке и прикрепляй фото или заметку.</div>
+  </div>
+
+  <input type="file" id="photoInput" accept="image/*" style="display:none" />
+  <div id="hint"></div>
+
+  <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6.5.0/turf.min.js"></script>
+  <script>
+    const ACCENT = '#7c6cf0';
+
+    function hint(t) {
+      const el = document.getElementById('hint');
+      el.textContent = t; el.classList.add('show');
+      clearTimeout(hint._t); hint._t = setTimeout(() => el.classList.remove('show'), 3500);
+    }
+
+    // Reveal a CORRIDOR built from a chain of overlapping circles along the track.
+    // Where the circles bulge, the outline scallops — so the cloud edge is puffy
+    // (little-cloud-after-little-cloud), not a straight ruler line. Radii jitter so
+    // the lumps look natural. Stays geographic, so the puffiness holds at any zoom.
+    function buildArea(track) {
+      const len = turf.length(track, { units: 'kilometers' });
+      const step = 0.045; // a puff roughly every 45 m
+      let u = null, idx = 0;
+      for (let d = 0; d <= len + step; d += step, idx++) {
+        const p = turf.along(track, Math.min(d, len), { units: 'kilometers' });
+        const jig = 0.038 + 0.024 * ((Math.sin(idx * 12.9898) * 43758.5453) % 1 + 1) % 1; // 38–62 m
+        const c = turf.circle(p, jig, { steps: 14, units: 'kilometers' });
+        u = u ? (turf.union(u, c) || u) : c;
+      }
+      // barely-there smoothing so circle seams don't spike, keeping the scallops
+      try {
+        u = turf.buffer(u, 0.006, { units: 'kilometers', steps: 6 });
+        u = turf.buffer(u, -0.006, { units: 'kilometers', steps: 6 }) || u;
+      } catch (e) {}
+      return u;
+    }
+    function outerRings(feat) {
+      const g = feat.geometry;
+      if (g.type === 'Polygon') return [g.coordinates[0]];
+      if (g.type === 'MultiPolygon') return g.coordinates.map(p => p[0]);
+      return [];
+    }
+
+    // Procedural cloud texture (seamless). Many large, overlapping soft white
+    // masses blend into continuous fluffy cloud with shaded gaps — deliberately
+    // irregular (seeded RNG, full-tile scatter) so it never reads as a grid of
+    // bubbles when tiled.
+    function cloudTexture(size) {
+      const cv = document.createElement('canvas');
+      cv.width = cv.height = size;
+      const g = cv.getContext('2d');
+      const base = g.createLinearGradient(0, 0, 0, size);
+      base.addColorStop(0, '#dbe5f1'); base.addColorStop(1, '#c6d4e8');
+      g.fillStyle = base; g.fillRect(0, 0, size, size);
+
+      let seed = 0x9e3779b1;
+      const rnd = () => ((seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff);
+
+      const blob = (x, y, r, col, a) => {
+        for (const dx of [-size, 0, size]) for (const dy of [-size, 0, size]) {
+          const grd = g.createRadialGradient(x + dx, y + dy, 0, x + dx, y + dy, r);
+          grd.addColorStop(0, `rgba(${col},${a})`);
+          grd.addColorStop(0.55, `rgba(${col},${a * 0.6})`);
+          grd.addColorStop(1, `rgba(${col},0)`);
+          g.fillStyle = grd; g.beginPath(); g.arc(x + dx, y + dy, r, 0, 7); g.fill();
+        }
+      };
+      const k = (size / 512) ** 2; // keep density constant as the tile grows
+      // shadow tufts first (give depth + carve gaps between cloud clumps)
+      for (let i = 0; i < 26 * k; i++)
+        blob(rnd() * size, rnd() * size, size * (0.05 + rnd() * 0.10), '146,163,193', 0.42);
+      // overlapping white masses that merge into fluffy cloud clumps
+      for (let i = 0; i < 44 * k; i++)
+        blob(rnd() * size, rnd() * size, size * (0.05 + rnd() * 0.11), '255,255,255', 0.96);
+      // bright cores → puffy highlights that make the clumps pop
+      for (let i = 0; i < 24 * k; i++)
+        blob(rnd() * size, rnd() * size, size * (0.025 + rnd() * 0.05), '255,255,255', 1);
+      return g.getImageData(0, 0, size, size);
+    }
+
+    // Sample points along the explored-area boundary → drawn as layered "puffs" so
+    // the cloud edge looks fluffy, scalloped and 3-D rather than a hard cut.
+    function boundaryPuffs(area, stepMeters) {
+      const pts = [];
+      for (const ring of outerRings(area)) {
+        const line = turf.lineString(ring);
+        const len = turf.length(line, { units: 'kilometers' });
+        let idx = 0;
+        for (let d = 0; d < len; d += stepMeters / 1000, idx++) {
+          // deterministic size jitter so the rim reads as irregular cloud lumps
+          const s = 0.72 + 0.55 * ((Math.sin(idx * 12.9898) * 43758.5453) % 1 + 1) % 1;
+          pts.push({ type: 'Feature', properties: { j: idx % 3, s },
+                     geometry: turf.along(line, d, { units: 'kilometers' }).geometry });
+        }
+      }
+      return { type: 'FeatureCollection', features: pts };
+    }
+
+    async function boot() {
+      const ns = { cache: 'no-store' };
+      const [fog, meta, track] = await Promise.all([
+        fetch('fog.geojson', ns).then(r => r.json()),
+        fetch('meta.json', ns).then(r => r.json()),
+        fetch('track.geojson', ns).then(r => r.json())
+      ]);
+
+      const map = new maplibregl.Map({
+        container: 'map',
+        style: {
+          version: 8,
+          sources: { osm: {
+            type: 'raster',
+            // Live CARTO Voyager: soft, pastel basemap everywhere (the local /tiles cache
+            // only covered Tbilisi). Retina @2x for crisp labels.
+            tiles: ['a','b','c','d'].map(s => `https://${s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png`),
+            tileSize: 256, minzoom: 0, maxzoom: 20,
+            attribution: '© OpenStreetMap · © CARTO'
+          } },
+          layers: [
+            { id: 'bg', type: 'background', paint: { 'background-color': '#dbe7ec' } },
+            // CARTO Voyager is already soft + pastel, so only a gentle nudge:
+            // slight desaturation + a touch brighter to sit calmly under the clouds.
+            { id: 'osm', type: 'raster', source: 'osm', paint: {
+                'raster-saturation': -0.12,
+                'raster-contrast': -0.04,
+                'raster-brightness-min': 0.05,
+                'raster-brightness-max': 1
+            } }
+          ]
+        },
+        center: meta.center, zoom: meta.zoom, attributionControl: { compact: true }
+      });
+      window.__m = map;
+      document.getElementById('zin').onclick = () => map.zoomIn({ duration: 300 });
+      document.getElementById('zout').onclick = () => map.zoomOut({ duration: 300 });
+      window.addEventListener('resize', () => map.resize());
+      [200, 600, 1200].forEach(t => setTimeout(() => { map.resize(); map.triggerRepaint(); }, t));
+      document.addEventListener('visibilitychange', () => map.triggerRepaint());
+
+      const area = buildArea(track);
+      const [cx, cy] = meta.center, pad = 0.4;
+      const outer = [
+        [cx - pad, cy - pad], [cx + pad, cy - pad],
+        [cx + pad, cy + pad], [cx - pad, cy + pad], [cx - pad, cy - pad]
+      ];
+      const holes = outerRings(area).map(r => r.slice().reverse());
+      const fogPolygon = { type: 'Feature', geometry: { type: 'Polygon', coordinates: [outer, ...holes] } };
+
+      document.getElementById('cnt').textContent = fog.features.length;
+      document.getElementById('cov').textContent = Math.round(fog.features.length / 170 * 100) + '% открыто';
+
+      const puffs = boundaryPuffs(area, 22);
+
+      map.on('load', () => {
+        map.addImage('clouds', cloudTexture(1024), { pixelRatio: 2 });
+        map.addSource('fog',   { type: 'geojson', data: fogPolygon });
+        map.addSource('area',  { type: 'geojson', data: area });
+        map.addSource('puffs', { type: 'geojson', data: puffs });
+        map.addSource('me',    { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+        map.addSource('rider', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+
+        // ── Clouds mode: volumetric white cloud cover over unexplored ground ──
+        // soft drop-shadow of the cloud sheet onto the map, along the inner edge
+        map.addLayer({ id: 'fog-innershadow', type: 'line', source: 'area',
+          layout: { 'line-join': 'round', 'line-cap': 'round' },
+          paint: { 'line-color': '#8ea0bd', 'line-width': 26, 'line-blur': 26, 'line-opacity': 0.28,
+                   'line-offset': 7 } });
+        map.addLayer({ id: 'fog-fill', type: 'fill', source: 'fog',
+          paint: { 'fill-pattern': 'clouds', 'fill-opacity': 0.84 } });
+
+        // Feather: a broad, heavily-blurred white band on the boundary that melts
+        // the hard fill edge so the cloud dissolves gradually into the clear path.
+        map.addLayer({ id: 'cloud-feather', type: 'line', source: 'area',
+          layout: { 'line-join': 'round', 'line-cap': 'round' },
+          paint: { 'line-color': '#eef4fb',
+                   'line-width': ['interpolate', ['linear'], ['zoom'], 12, 10, 16, 40, 18, 70],
+                   'line-blur':  ['interpolate', ['linear'], ['zoom'], 12, 12, 16, 44, 18, 80],
+                   'line-opacity': 0.8 } });
+
+        // Fluffy scalloped rim, three stacked layers = depth (all soft-blurred):
+        map.addLayer({ id: 'puff-shadow', type: 'circle', source: 'puffs',
+          paint: { 'circle-radius': ['*', ['get', 's'], ['interpolate', ['linear'], ['zoom'], 12, 16, 16, 36]],
+                   'circle-color': '#8fa0bd', 'circle-blur': 1.2, 'circle-opacity': 0.4,
+                   'circle-translate': [0, 4] } });
+        map.addLayer({ id: 'puff-body', type: 'circle', source: 'puffs',
+          paint: { 'circle-radius': ['*', ['get', 's'], ['interpolate', ['linear'], ['zoom'], 12, 13, 16, 30]],
+                   'circle-color': '#f2f6fc', 'circle-blur': 0.75, 'circle-opacity': 1 } });
+        map.addLayer({ id: 'puff-hi', type: 'circle', source: 'puffs',
+          paint: { 'circle-radius': ['*', ['get', 's'], ['interpolate', ['linear'], ['zoom'], 12, 7, 16, 16]],
+                   'circle-color': '#ffffff', 'circle-blur': 0.7, 'circle-opacity': 0.9,
+                   'circle-translate': [0, -3] } });
+
+        // ── No-clouds mode: explored area as a soft violet glow (starts hidden
+        //    via opacity 0 so it can cross-fade in when the clouds disperse) ──
+        map.addLayer({ id: 'area-fill', type: 'fill', source: 'area',
+          paint: { 'fill-color': ACCENT, 'fill-opacity': 0,
+                   'fill-opacity-transition': { duration: 600 } } });
+        map.addLayer({ id: 'area-line', type: 'line', source: 'area',
+          layout: { 'line-join': 'round', 'line-cap': 'round' },
+          paint: { 'line-color': ACCENT, 'line-width': 3, 'line-opacity': 0, 'line-blur': 1,
+                   'line-opacity-transition': { duration: 600 } } });
+
+        // ── rider marker (moves during a live ride) ──
+        map.addLayer({ id: 'rider-halo', type: 'circle', source: 'rider',
+          paint: { 'circle-radius': 17, 'circle-color': ACCENT, 'circle-opacity': 0.22 } });
+        map.addLayer({ id: 'rider-dot', type: 'circle', source: 'rider',
+          paint: { 'circle-radius': 8, 'circle-color': ACCENT, 'circle-stroke-color': '#fff', 'circle-stroke-width': 3 } });
+
+        // ── "You are here" marker ──
+        map.addLayer({ id: 'me-halo', type: 'circle', source: 'me',
+          paint: { 'circle-radius': 15, 'circle-color': '#378add', 'circle-opacity': 0.22 } });
+        map.addLayer({ id: 'me-dot', type: 'circle', source: 'me',
+          paint: { 'circle-radius': 7, 'circle-color': '#185fa5', 'circle-stroke-color': '#fff', 'circle-stroke-width': 3 } });
+
+        // Smooth opacity/size transitions so clouds DISSOLVE & DRIFT apart on toggle
+        // instead of snapping off.
+        map.setPaintProperty('fog-fill', 'fill-opacity-transition', { duration: 900 });
+        map.setPaintProperty('cloud-feather', 'line-opacity-transition', { duration: 900 });
+        map.setPaintProperty('fog-innershadow', 'line-opacity-transition', { duration: 900 });
+        ['puff-shadow', 'puff-body', 'puff-hi'].forEach(id => {
+          map.setPaintProperty(id, 'circle-opacity-transition', { duration: 900 });
+          map.setPaintProperty(id, 'circle-radius-transition', { duration: 900 });
+          map.setPaintProperty(id, 'circle-translate-transition', { duration: 900 });
+        });
+
+        map.triggerRepaint();
+      });
+
+      // ── Cloud toggle: animate a soft dissolve + outward drift ──
+      // base radius expressions per puff layer, and the "blown apart" versions
+      const PUFF_R = {
+        'puff-shadow': ['interpolate', ['linear'], ['zoom'], 12, 16, 16, 36],
+        'puff-body':   ['interpolate', ['linear'], ['zoom'], 12, 13, 16, 30],
+        'puff-hi':     ['interpolate', ['linear'], ['zoom'], 12, 7, 16, 16]
+      };
+      const OPA = { 'puff-shadow': 0.4, 'puff-body': 1, 'puff-hi': 0.9 };
+      let clouds = true;
+      function applyClouds(on) {
+        map.setPaintProperty('fog-fill', 'fill-opacity', on ? 0.84 : 0);
+        map.setPaintProperty('cloud-feather', 'line-opacity', on ? 0.8 : 0);
+        map.setPaintProperty('fog-innershadow', 'line-opacity', on ? 0.28 : 0);
+        ['puff-shadow', 'puff-body', 'puff-hi'].forEach(id => {
+          map.setPaintProperty(id, 'circle-opacity', on ? OPA[id] : 0);
+          // when hiding, swell the puffs so they read as clouds breaking apart
+          map.setPaintProperty(id, 'circle-radius',
+            on ? ['*', ['get', 's'], PUFF_R[id]] : ['*', ['get', 's'], PUFF_R[id], 2.1]);
+          map.setPaintProperty(id, 'circle-translate', on ? [0, id === 'puff-shadow' ? 4 : id === 'puff-hi' ? -3 : 0] : [0, -14]);
+        });
+        map.setPaintProperty('area-fill', 'fill-opacity', on ? 0 : 0.12);
+        map.setPaintProperty('area-line', 'line-opacity', on ? 0 : 0.5);
+        map.triggerRepaint();
+      }
+      const cloudBtn = document.getElementById('cloudBtn');
+      cloudBtn.onclick = () => {
+        clouds = !clouds;
+        applyClouds(clouds);
+        cloudBtn.classList.toggle('off', !clouds);
+        hint(clouds ? 'Облака' : 'Облака скрыты');
+      };
+
+      // ── Live ride: replay the outing, clouds parting, discovering places ──
+      const EMPTY = { type: 'FeatureCollection', features: [] };
+      const fullArea = area, fullFog = fogPolygon, fullPuffs = puffs;
+      const rideLen = turf.length(track, { units: 'kilometers' });
+      const RIDE_MS = 9000;
+      const fmt = s => Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0');
+      const $ = id => document.getElementById(id);
+
+      // Notable spots along the Da Nang route — surfaced when the rider passes near.
+      const PLACES = [
+        { name: 'Рынок Хан', cat: 'Рынок · Chợ Hàn', emoji: '🛍️', lon: 108.2250, lat: 16.0685 },
+        { name: 'Мост Дракона', cat: 'Достопримечательность · Cầu Rồng', emoji: '🐉', lon: 108.2270, lat: 16.0614 },
+        { name: 'Пляж Ми Кхе', cat: 'Пляж · Bãi biển Mỹ Khê', emoji: '🏖️', lon: 108.2468, lat: 16.0598 },
+        { name: 'Парк Бьен Донг', cat: 'Набережная · Biển Đông', emoji: '🌊', lon: 108.2455, lat: 16.0700 },
+      ];
+
+      function revealTo(d) {
+        let rev = null;
+        if (d > 0.03) {
+          try {
+            const seg = turf.lineSliceAlong(track, 0, d, { units: 'kilometers' });
+            rev = turf.buffer(seg, 0.04, { units: 'kilometers', steps: 8 });
+          } catch (e) {}
+        }
+        map.getSource('area').setData(rev || EMPTY);
+        const holes = rev ? outerRings(rev).map(r => r.slice().reverse()) : [];
+        map.getSource('fog').setData({ type: 'Feature', geometry: { type: 'Polygon', coordinates: [outer, ...holes] } });
+      }
+
+      let riding = false, paused = false, rafId = null, rideBase = null, rideP = 0, prevD = 0;
+      function rideStep(ts) {
+        if (!riding || paused) return;
+        if (rideBase == null) rideBase = ts - rideP * RIDE_MS;
+        rideP = Math.min(1, (ts - rideBase) / RIDE_MS);
+        const d = rideLen * rideP;
+        revealTo(d);
+        const pos = turf.along(track, d, { units: 'kilometers' }).geometry.coordinates;
+        map.getSource('rider').setData({ type: 'Feature', geometry: { type: 'Point', coordinates: pos } });
+        $('s-dist').textContent = d.toFixed(1);
+        $('s-cells').textContent = Math.round(fog.features.length * rideP);
+        $('s-time').textContent = fmt(rideP * RIDE_MS / 1000);
+        // discover any place the just-travelled segment passed near (robust to big steps)
+        let seg = null;
+        if (d > prevD + 0.005) { try { seg = turf.lineSliceAlong(track, prevD, d, { units: 'kilometers' }); } catch (e) {} }
+        for (const pl of PLACES) {
+          if (pl.done) continue;
+          const near = seg ? turf.pointToLineDistance([pl.lon, pl.lat], seg, { units: 'kilometers' }) < 0.09
+                           : turf.distance([pl.lon, pl.lat], pos, { units: 'kilometers' }) < 0.13;
+          if (near) { pl.done = true; prevD = d; openPlace(pl); map.triggerRepaint(); return; }
+        }
+        prevD = d;
+        map.triggerRepaint();
+        if (paused) return;
+        if (rideP < 1) rafId = requestAnimationFrame(rideStep);
+        else finishRide(true);
+      }
+      function startRide() {
+        if (riding) return;
+        riding = true; paused = false; rideP = 0; rideBase = null; prevD = 0;
+        PLACES.forEach(p => p.done = false);
+        if (!clouds) { clouds = true; applyClouds(true); cloudBtn.classList.remove('off'); }
+        map.getSource('puffs').setData(EMPTY);
+        map.getSource('area').setData(EMPTY);
+        map.getSource('fog').setData(fullFog);
+        $('sheet').classList.add('open');
+        $('rideBtn').style.display = 'none';
+        cloudBtn.style.display = 'none';
+        const bb = turf.bbox(track);
+        map.fitBounds([[bb[0], bb[1]], [bb[2], bb[3]]], { padding: 70, duration: 700 });
+        rafId = requestAnimationFrame(rideStep);
+      }
+      function resumeRide() {
+        if (!riding) return;
+        paused = false; rideBase = null;
+        rafId = requestAnimationFrame(rideStep);
+      }
+      function finishRide(done) {
+        riding = false; paused = false;
+        if (rafId) cancelAnimationFrame(rafId);
+        map.getSource('area').setData(fullArea);
+        map.getSource('fog').setData(fullFog);
+        map.getSource('puffs').setData(fullPuffs);
+        map.getSource('rider').setData(EMPTY);
+        $('sheet').classList.remove('open');
+        $('rideBtn').style.display = '';
+        cloudBtn.style.display = '';
+        if (done) hint('Поездка записана · +' + fog.features.length + ' ячеек');
+        map.triggerRepaint();
+      }
+      $('rideBtn').onclick = startRide;
+      $('stopBtn').onclick = () => finishRide(false);
+
+      // ── Feature 2: new-place discovery card + journal ──
+      const journal = [];
+      let pendingPlace = null;
+      const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+      function openPlace(pl) {
+        paused = true; if (rafId) cancelAnimationFrame(rafId);
+        pendingPlace = pl;
+        $('pcName').textContent = pl.name;
+        $('pcCat').textContent = pl.cat;
+        $('sheet').classList.remove('open');
+        $('placeScrim').classList.add('open');
+        $('placeCard').classList.add('open');
+      }
+      function closeCard() {
+        $('placeCard').classList.remove('open');
+        $('placeScrim').classList.remove('open');
+        pendingPlace = null;
+        if (riding) { $('sheet').classList.add('open'); resumeRide(); }
+      }
+      function addEntry(pl, type, payload) {
+        journal.push({ name: pl.name, emoji: pl.emoji, type, payload });
+        const b = $('jCount'); b.textContent = journal.length; b.classList.add('show');
+        hint('В журнал: ' + pl.name);
+      }
+      $('pcNote').onclick = () => {
+        const pl = pendingPlace;
+        const t = pl && prompt('Заметка о месте «' + pl.name + '»:');
+        if (pl && t) addEntry(pl, 'note', t);
+        closeCard();
+      };
+      $('pcPhoto').onclick = () => $('photoInput').click();
+      $('photoInput').onchange = e => {
+        const f = e.target.files && e.target.files[0];
+        if (f && pendingPlace) addEntry(pendingPlace, 'photo', URL.createObjectURL(f));
+        e.target.value = '';
+        closeCard();
+      };
+      $('pcSkip').onclick = closeCard;
+      $('placeScrim').onclick = closeCard;
+
+      function renderJournal() {
+        const list = $('jList'); list.innerHTML = '';
+        $('jEmpty').style.display = journal.length ? 'none' : 'block';
+        journal.slice().reverse().forEach(e => {
+          const thumb = e.type === 'photo'
+            ? '<img class="jThumb" src="' + e.payload + '">'
+            : '<div class="jThumb">' + (e.emoji || '📍') + '</div>';
+          const text = e.type === 'photo' ? 'Фото' : e.payload;
+          const item = document.createElement('div');
+          item.className = 'jItem';
+          item.innerHTML = thumb + '<div class="jBody"><div class="jName">' + esc(e.name) + '</div><div class="jText">' + esc(text) + '</div></div>';
+          list.appendChild(item);
+        });
+      }
+      function closeJournal() { $('journalSheet').classList.remove('open'); $('journalScrim').classList.remove('open'); }
+      $('journalBtn').onclick = () => { renderJournal(); $('journalScrim').classList.add('open'); $('journalSheet').classList.add('open'); };
+      $('jClose').onclick = closeJournal;
+      $('journalScrim').onclick = closeJournal;
+
+      // ── Geolocation ──
+      document.getElementById('me').onclick = () => {
+        if (!navigator.geolocation) { hint('Геолокация недоступна в этом браузере'); return; }
+        hint('Определяю местоположение…');
+        navigator.geolocation.getCurrentPosition(
+          p => {
+            const c = [p.coords.longitude, p.coords.latitude];
+            map.getSource('me').setData({ type: 'Feature', geometry: { type: 'Point', coordinates: c } });
+            map.flyTo({ center: c, zoom: 15 });
+            hint('Вы здесь');
+          },
+          () => hint('Не удалось получить местоположение (нужно разрешение)'),
+          { enableHighAccuracy: true, timeout: 8000 }
+        );
+      };
+
+      // ── Search (OSM Nominatim geocoder) ──
+      async function search() {
+        const q = document.getElementById('q').value.trim();
+        if (!q) return;
+        hint('Ищу «' + q + '»…');
+        try {
+          const r = await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' + encodeURIComponent(q),
+                                { headers: { 'Accept-Language': 'ru' } });
+          const j = await r.json();
+          if (!j.length) { hint('Ничего не найдено'); return; }
+          map.flyTo({ center: [+j[0].lon, +j[0].lat], zoom: 14 });
+          hint(j[0].display_name.split(',').slice(0, 2).join(','));
+        } catch (e) { hint('Поиск недоступен (нет сети)'); }
+      }
+      document.getElementById('q').addEventListener('keydown', e => { if (e.key === 'Enter') search(); });
+    }
+    boot();
+  </script>
+</body>
+</html>

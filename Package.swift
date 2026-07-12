@@ -10,8 +10,10 @@ let package = Package(
         .library(name: "AMapsTracking", targets: ["AMapsTracking"]),
         .library(name: "AMapsStorage", targets: ["AMapsStorage"]),
         .library(name: "AMapsApp", targets: ["AMapsApp"]),
+        .executable(name: "FogExport", targets: ["FogExport"]),
     ],
     targets: [
+        .executableTarget(name: "FogExport", dependencies: ["AMapsDomain", "AMapsFog"]),
         .target(name: "AMapsDomain"),
         .target(name: "AMapsFog", dependencies: ["AMapsDomain"]),
         .target(name: "AMapsTracking", dependencies: ["AMapsDomain", "AMapsFog"]),
