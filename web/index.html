@@ -57,7 +57,7 @@
     #cloudBtn:active { transform: translateX(-50%) scale(0.94); }
     #cloudBtn.off { background: rgba(58,53,80,0.92); color: #fff; }
 
-    #hint { position: absolute; bottom: 84px; left: 50%; transform: translateX(-50%);
+    #hint { position: absolute; bottom: 120px; left: 50%; transform: translateX(-50%);
             z-index: 2; font-size: 13px; font-weight: 500; color: #fff; white-space: nowrap;
             background: rgba(58,53,80,0.86); padding: 8px 15px; border-radius: 16px;
             opacity: 0; transition: opacity .3s; pointer-events: none;
@@ -160,7 +160,7 @@
     .aCard .ads { font-size: 11.5px; color: #8b86a0; margin-top: 3px; line-height: 1.3; }
     .aCard .achk { position: absolute; top: 10px; right: 10px; width: 20px; height: 20px; border-radius: 50%;
                    background: var(--accent); color: #fff; font-size: 12px; display: flex; align-items: center; justify-content: center; }
-    #hint { bottom: 96px; }
+    #hint { bottom: 128px; }
     /* legacy floating organs — replaced by the bottom dock */
     #journalBtn, #achBtn, #profileBtn, #rideBtn, #rightStack #cloudBtn { display: none !important; }
     #rideBtn { position: absolute; bottom: 26px; left: 50%; transform: translateX(-50%); z-index: 3;
@@ -200,15 +200,21 @@
     #dockGrab::before { content: ''; width: 38px; height: 5px; border-radius: 3px; background: #cbc6db;
       transition: background .2s; }
     #dock.expanded #dockGrab::before { background: #b3aecb; }
-    /* stats — revealed only when expanded */
-    #dockStats { display: flex; gap: 10px; overflow: hidden; max-height: 0; opacity: 0; margin: 0;
+    /* stats — revealed progressively via --p (0 collapsed → 1 expanded) so
+       the sheet grows under the finger while dragging the grabber */
+    #dock { --p: 0; }
+    #dock.expanded { --p: 1; }
+    #dockStats { display: flex; gap: 10px; overflow: hidden;
+      max-height: calc(88px * var(--p)); opacity: var(--p);
+      margin: calc(2px * var(--p)) calc(2px * var(--p)) calc(14px * var(--p));
       transition: max-height .4s cubic-bezier(.22,1,.36,1), opacity .3s, margin .4s; }
-    #dock.expanded #dockStats { max-height: 88px; opacity: 1; margin: 2px 2px 14px; }
+    #dock.dragging #dockStats { transition: none; }
     .dStat { flex: 1; background: rgba(124,108,240,0.09); border-radius: 16px; padding: 11px 6px; text-align: center; }
     .dStat .v { font-size: 22px; font-weight: 800; color: var(--accent); line-height: 1; }
     .dStat .l { font-size: 11px; color: #8b86a0; margin-top: 5px; font-weight: 700; }
     /* organ row */
-    #dockRow { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 4px; }
+    #dockRow { display: flex; flex-wrap: nowrap; align-items: center; justify-content: space-between; gap: 4px 4px; }
+    #dock.expanded #dockRow { flex-wrap: wrap; }
     .dItem { display: flex; flex-direction: column; align-items: center; gap: 3px;
       background: none; border: none; cursor: pointer; color: var(--ink); padding: 6px 2px; flex: 1; }
     .dItem .ic { display: flex; align-items: center; justify-content: center; transition: transform .15s; }
@@ -972,21 +978,50 @@
         $('d-cells').textContent = Math.max(26, progress.cells);
         $('d-ach').textContent = unlocked.size;
       }
-      function expandDock() { if (dock.classList.contains('gone')) return; syncDockStats(); dock.classList.add('expanded'); dockScrim.classList.add('on'); }
-      function collapseDock() { dock.classList.remove('expanded'); dockScrim.classList.remove('on'); }
+      function expandDock() { if (dock.classList.contains('gone')) return; syncDockStats(); dock.style.removeProperty('--p'); dock.classList.add('expanded'); dockScrim.classList.add('on'); }
+      function collapseDock() { dock.style.removeProperty('--p'); dock.classList.remove('expanded'); dockScrim.classList.remove('on'); }
       function toggleDock() { dock.classList.contains('expanded') ? collapseDock() : expandDock(); }
       dockScrim.onclick = collapseDock;
 
-      // grabber: tap toggles, vertical drag morphs
+      // Grabber: tap toggles; vertical drag morphs the sheet under the finger.
+      // A progress p (0 collapsed → 1 expanded) is driven live from the drag
+      // distance; the labels/tools/dim swap at the halfway point, and release
+      // snaps to whichever end the drag + fling velocity is closest to.
       const grab = $('dockGrab');
-      let dragY = null, dragged = false;
-      grab.addEventListener('pointerdown', e => { dragY = e.clientY; dragged = false; grab.setPointerCapture(e.pointerId); });
+      const DRAG_RANGE = 150;               // px of travel for a full morph
+      let dragY = null, lastY = 0, vel = 0, baseP = 0, dragged = false;
+      function setP(p) {
+        p = Math.max(0, Math.min(1, p));
+        dock.style.setProperty('--p', p.toFixed(3));
+        dock.classList.toggle('expanded', p >= 0.5);
+        dockScrim.classList.toggle('on', p >= 0.5);
+      }
+      grab.addEventListener('pointerdown', e => {
+        if (dock.classList.contains('gone')) return;
+        dragY = lastY = e.clientY; vel = 0; dragged = false;
+        baseP = dock.classList.contains('expanded') ? 1 : 0;
+        syncDockStats();
+        dock.classList.add('dragging');
+        grab.setPointerCapture(e.pointerId);
+      });
       grab.addEventListener('pointermove', e => {
         if (dragY === null) return;
-        const dy = e.clientY - dragY;
-        if (Math.abs(dy) > 16) { dragged = true; if (dy < 0) expandDock(); else collapseDock(); dragY = null; }
+        vel = e.clientY - lastY; lastY = e.clientY;
+        if (Math.abs(e.clientY - dragY) > 3) dragged = true;
+        setP(baseP + (dragY - e.clientY) / DRAG_RANGE);   // drag up ⇒ grow
       });
-      grab.addEventListener('pointerup', e => { if (!dragged) toggleDock(); dragY = null; try { grab.releasePointerCapture(e.pointerId); } catch (_) {} });
+      grab.addEventListener('pointerup', e => {
+        if (dragY === null) return;
+        dock.classList.remove('dragging');
+        try { grab.releasePointerCapture(e.pointerId); } catch (_) {}
+        if (!dragged) { dragY = null; toggleDock(); return; }
+        const p = baseP + (dragY - e.clientY) / DRAG_RANGE;
+        dragY = null;
+        // fling wins over position; otherwise snap to the nearer end
+        const open = vel < -4 ? true : vel > 4 ? false : p >= 0.5;
+        open ? expandDock() : collapseDock();
+      });
+      grab.style.touchAction = 'none';
 
       // organ buttons proxy to the (now hidden) legacy controls
       $('dLoc').onclick = () => $('me').click();
