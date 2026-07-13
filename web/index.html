@@ -212,6 +212,28 @@
     .jName { font-size: 15px; font-weight: 600; color: var(--ink); }
     .jText { font-size: 13px; color: #8b86a0; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     #jEmpty { color: #a29fb5; font-size: 14px; line-height: 1.5; padding: 10px 2px 4px; }
+
+    /* "how it works" link inside the profile */
+    #obReopen { width: 100%; margin-top: 16px; height: 46px; border: none; background: #f4f2fb;
+      color: var(--accent); font-size: 14px; font-weight: 600; border-radius: 14px; cursor: pointer; }
+
+    /* onboarding overlay (first launch) */
+    #onboard { position: absolute; inset: 0; z-index: 20; padding: 34px 28px 40px;
+      background: linear-gradient(180deg, #eef0fb 0%, #e6eff4 100%);
+      display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;
+      opacity: 1; transition: opacity .45s; }
+    #onboard.hide { opacity: 0; pointer-events: none; }
+    .obArt { font-size: 92px; line-height: 1; margin-bottom: 28px; filter: drop-shadow(0 12px 24px rgba(60,50,90,0.18)); }
+    .obTitle { font-size: 27px; font-weight: 700; color: var(--ink); margin-bottom: 14px; max-width: 320px; }
+    .obText { font-size: 16px; color: #6b6680; line-height: 1.55; max-width: 330px; margin-bottom: 34px; }
+    .obDots { display: flex; gap: 8px; margin-bottom: 26px; }
+    .obDot { width: 8px; height: 8px; border-radius: 50%; background: #cec9e6; transition: all .3s; }
+    .obDot.on { background: var(--accent); width: 24px; border-radius: 4px; }
+    #obNext { height: 54px; padding: 0 44px; border: none; border-radius: 27px; background: var(--accent);
+      color: #fff; font-size: 17px; font-weight: 600; cursor: pointer; box-shadow: 0 10px 28px rgba(124,108,240,0.45);
+      transition: transform .12s; }
+    #obNext:active { transform: scale(0.95); }
+    #obSkip { margin-top: 14px; border: none; background: none; color: #9591a8; font-size: 14px; font-weight: 600; cursor: pointer; }
   </style>
 </head>
 <body>
@@ -308,6 +330,17 @@
     </div>
     <div class="pSectionTitle">Города</div>
     <div id="pCities"></div>
+    <button id="obReopen">Как это работает →</button>
+  </div>
+
+  <!-- Onboarding (first launch) -->
+  <div id="onboard">
+    <div class="obArt" id="obArt">🌫️</div>
+    <div class="obTitle" id="obTitle">—</div>
+    <div class="obText" id="obText">—</div>
+    <div class="obDots" id="obDots"></div>
+    <button id="obNext">Далее</button>
+    <button id="obSkip">Пропустить</button>
   </div>
 
   <input type="file" id="photoInput" accept="image/*" style="display:none" />
@@ -831,6 +864,30 @@
       $('pClose').onclick = closeProfile;
       $('profileScrim').onclick = closeProfile;
 
+      // ── Feature 6: onboarding (first launch, re-openable from profile) ──
+      const SLIDES = [
+        { art: '🌫️', title: 'Карта помнит, где ты был', text: 'AMaps сама открывает туман над улицами, где ты прошёл, проехал или прокатился.' },
+        { art: '🚲', title: 'Раздвигай облака', text: 'Каждая поездка стирает облака вдоль маршрута. Пешком, на велике или авто — трек красится по активности.' },
+        { art: '🏆', title: 'Места и ачивки', text: 'Новые места просят фото и заметку, а исследование города даёт награды и собирает коллекцию.' },
+      ];
+      let si = 0;
+      function renderSlide() {
+        const s = SLIDES[si];
+        $('obArt').textContent = s.art;
+        $('obTitle').textContent = s.title;
+        $('obText').textContent = s.text;
+        $('obDots').innerHTML = SLIDES.map((_, i) => '<div class="obDot' + (i === si ? ' on' : '') + '"></div>').join('');
+        $('obNext').textContent = si === SLIDES.length - 1 ? 'Поехали!' : 'Далее';
+        $('obSkip').style.visibility = si === SLIDES.length - 1 ? 'hidden' : 'visible';
+      }
+      function closeOnboard() { $('onboard').classList.add('hide'); try { localStorage.setItem('amaps_onboarded', '1'); } catch (e) {} }
+      function openOnboard() { si = 0; renderSlide(); $('onboard').classList.remove('hide'); }
+      $('obNext').onclick = () => { if (si < SLIDES.length - 1) { si++; renderSlide(); } else closeOnboard(); };
+      $('obSkip').onclick = closeOnboard;
+      $('obReopen').onclick = () => { closeProfile(); openOnboard(); };
+      renderSlide();
+      try { if (localStorage.getItem('amaps_onboarded')) $('onboard').classList.add('hide'); } catch (e) {}
+
       // ── Geolocation ──
       document.getElementById('me').onclick = () => {
         if (!navigator.geolocation) { hint('Геолокация недоступна в этом браузере'); return; }
@@ -873,16 +930,26 @@
   (function () {
     const $ = id => document.getElementById(id);
     const EMPTY = { type: 'FeatureCollection', features: [] };
+    const CARTO = 'https://a.basemaps.cartocdn.com/rastertiles/voyager';
 
-    // Region catalog. Дананг ships explored (its real track); the rest start fully
-    // clouded — you download the tiles, then go ride to disperse the fog yourself.
+    // Region catalog with REAL bounding boxes [west, south, east, north]. The fog now
+    // covers the whole region area (province / country), not a square around a point.
+    // Дананг ships explored (its real track); the rest start fully clouded — you
+    // download the region's tiles, then ride to disperse the fog yourself.
     const REGIONS = [
-      { id: 'danang',  emoji: '🏖️', name: 'Дананг',            where: 'Вьетнам',  center: [108.2245, 16.0637], zoom: 14,   pad: 0.18, size: '82 МБ',  downloaded: true,  cov: 0.15, cells: 26, active: true },
-      { id: 'dalat',   emoji: '🌲', name: 'Далат',             where: 'Вьетнам',  center: [108.4419, 11.9404], zoom: 13.5, pad: 0.16, size: '58 МБ',  downloaded: false, cov: 0 },
-      { id: 'bangkok', emoji: '🛕', name: 'Бангкок',           where: 'Таиланд',  center: [100.5018, 13.7563], zoom: 12.5, pad: 0.30, size: '146 МБ', downloaded: false, cov: 0 },
-      { id: 'krd',     emoji: '🌻', name: 'Краснодарский край', where: 'Россия',   center: [39.030, 45.300],    zoom: 8.5,  pad: 1.20, size: '0.9 ГБ',  downloaded: false, cov: 0 },
-      { id: 'vietnam', emoji: '🇻🇳', name: 'Вьетнам',           where: 'Страна',   center: [106.30, 16.50],     zoom: 6,    pad: 3.50, size: '2.4 ГБ',  downloaded: false, cov: 0 },
+      { id: 'danang',  emoji: '🏖️', name: 'Дананг',            where: 'Вьетнам',  center: [108.2200, 16.0500], zoom: 12,  bbox: [107.90, 15.85, 108.55, 16.28], size: '82 МБ',  downloaded: true,  cov: 0.15, cells: 26, active: true },
+      { id: 'dalat',   emoji: '🌲', name: 'Далат',             where: 'Вьетнам',  center: [108.4419, 11.9404], zoom: 12,  bbox: [108.34, 11.84, 108.52, 12.00], size: '58 МБ',  downloaded: false, cov: 0 },
+      { id: 'bangkok', emoji: '🛕', name: 'Бангкок',           where: 'Таиланд',  center: [100.5018, 13.7563], zoom: 10,  bbox: [100.32, 13.53, 100.94, 13.96], size: '146 МБ', downloaded: false, cov: 0 },
+      { id: 'krd',     emoji: '🌻', name: 'Краснодарский край', where: 'Россия',   center: [39.700, 45.300],    zoom: 7,   bbox: [36.60, 43.40, 41.85, 46.70], size: '0.9 ГБ',  downloaded: false, cov: 0 },
+      { id: 'vietnam', emoji: '🇻🇳', name: 'Вьетнам',           where: 'Страна',   center: [106.00, 16.00],     zoom: 5,   bbox: [102.10, 8.20, 109.60, 23.40], size: '2.4 ГБ',  downloaded: false, cov: 0 },
     ];
+
+    const outerRings = feat => {
+      const g = feat.geometry;
+      if (g.type === 'Polygon') return [g.coordinates[0]];
+      if (g.type === 'MultiPolygon') return g.coordinates.map(p => p[0]);
+      return [];
+    };
 
     function whenReady(cb) {
       const t = setInterval(() => {
@@ -894,47 +961,101 @@
     }
 
     whenReady(map => {
-      // capture Дананг's explored geometry so re-selecting it restores the corridor
-      const danangFog  = JSON.parse(JSON.stringify(map.getSource('fog')._data));
+      // capture Дананг's explored corridor so its fog keeps the ridden path clear
       const danangArea = JSON.parse(JSON.stringify(map.getSource('area')._data));
 
-      const rectFog = r => {
-        const [x, y] = r.center, p = r.pad;
-        return { type: 'Feature', geometry: { type: 'Polygon', coordinates: [[
-          [x - p, y - p], [x + p, y - p], [x + p, y + p], [x - p, y + p], [x - p, y - p]
-        ]] } };
-      };
-
-      function switchRegion(r) {
-        REGIONS.forEach(x => x.active = false); r.active = true;
-        map.flyTo({ center: r.center, zoom: r.zoom, duration: 900, essential: true });
-        if (r.id === 'danang') {
-          map.getSource('area').setData(danangArea);
-          map.getSource('fog').setData(danangFog);
-        } else {
-          map.getSource('area').setData(EMPTY);        // nothing explored yet
-          map.getSource('fog').setData(rectFog(r));    // whole region under clouds
+      // Fog that covers the REGION: rounded bbox as the outer ring, the explored
+      // corridor (Дананг only) punched out as reverse-wound holes.
+      function regionFog(r) {
+        let ring;
+        try {
+          const [w, s, e, n] = r.bbox;
+          const wk = Math.max(0.5, turf.distance([w, (s + n) / 2], [e, (s + n) / 2], { units: 'kilometers' }));
+          const round = Math.min(40, Math.max(1.2, wk * 0.05));
+          ring = outerRings(turf.buffer(turf.bboxPolygon(r.bbox), round, { units: 'kilometers', steps: 8 }))[0];
+        } catch (e) {
+          const [w, s, e2, n] = r.bbox;
+          ring = [[w, s], [e2, s], [e2, n], [w, n], [w, s]];
         }
+        const holes = (r.id === 'danang') ? outerRings(danangArea).map(rg => rg.slice().reverse()) : [];
+        return { type: 'Feature', geometry: { type: 'Polygon', coordinates: [ring, ...holes] } };
+      }
+      const ringLine = fog => ({ type: 'Feature', geometry: { type: 'LineString', coordinates: fog.geometry.coordinates[0] } });
+
+      // Soft white glow on the region boundary so the cloud bank melts into the clear
+      // world instead of ending on a hard rectangle. Sits above the clouds, below markers.
+      if (!map.getSource('regionEdge')) map.addSource('regionEdge', { type: 'geojson', data: EMPTY });
+      if (!map.getLayer('region-edge')) map.addLayer({
+        id: 'region-edge', type: 'line', source: 'regionEdge',
+        layout: { 'line-join': 'round', 'line-cap': 'round' },
+        paint: {
+          'line-color': '#eef4fb',
+          'line-width': ['interpolate', ['linear'], ['zoom'], 4, 12, 10, 40, 16, 70],
+          'line-blur':  ['interpolate', ['linear'], ['zoom'], 4, 16, 10, 44, 16, 80],
+          'line-opacity': 0.9
+        }
+      }, map.getLayer('area-fill') ? 'area-fill' : undefined);
+
+      function applyRegionData(r, fly) {
+        const fog = regionFog(r);
+        map.getSource('area').setData(r.id === 'danang' ? danangArea : EMPTY);
+        map.getSource('fog').setData(fog);
+        if (map.getSource('regionEdge')) map.getSource('regionEdge').setData(ringLine(fog));
         const rb = $('rideBtn'); if (rb) rb.style.display = (r.id === 'danang') ? '' : 'none';
         if ($('regionName')) $('regionName').textContent = r.name;
         if ($('cov')) $('cov').textContent = Math.round(r.cov * 100) + '% открыто';
         if ($('cnt')) $('cnt').textContent = r.cells || 0;
         if ($('p-sub')) $('p-sub').textContent = r.name + ' · ' + Math.round(r.cov * 100) + '% открыто';
+        if (fly) map.flyTo({ center: r.center, zoom: r.zoom, duration: 900, essential: true });
         map.triggerRepaint();
         renderCities();
+      }
+      function switchRegion(r) {
+        REGIONS.forEach(x => x.active = false); r.active = true;
+        applyRegionData(r, true);
+      }
+
+      // keep the boundary glow in sync with the cloud toggle (boot's onclick runs first)
+      const cb = $('cloudBtn');
+      if (cb) cb.addEventListener('click', () => {
+        if (map.getLayer('region-edge'))
+          map.setPaintProperty('region-edge', 'line-opacity', cb.classList.contains('off') ? 0 : 0.9);
+      });
+
+      // ── Real offline preload: warm the browser cache with CARTO tiles over the
+      //    region bbox at a few zoom levels, reporting true progress. ──
+      const lon2x = (lon, z) => Math.floor((lon + 180) / 360 * 2 ** z);
+      const lat2y = (lat, z) => { const a = lat * Math.PI / 180;
+        return Math.floor((1 - Math.log(Math.tan(a) + 1 / Math.cos(a)) / Math.PI) / 2 * 2 ** z); };
+      function tileList(bbox, z) {
+        const [w, s, e, n] = bbox, out = [];
+        const x0 = lon2x(w, z), x1 = lon2x(e, z), y0 = lat2y(n, z), y1 = lat2y(s, z);
+        for (let x = x0; x <= x1; x++) for (let y = y0; y <= y1; y++) out.push([z, x, y]);
+        return out;
+      }
+      async function preload(r, onProgress) {
+        const zc = Math.round(r.zoom), zs = [];
+        [zc - 1, zc, zc + 1].forEach(z => { if (z >= 1 && z <= 16 && !zs.includes(z)) zs.push(z); });
+        let tiles = [];
+        zs.forEach(z => { tiles = tiles.concat(tileList(r.bbox, z)); });
+        if (tiles.length > 220) { const k = Math.ceil(tiles.length / 220); tiles = tiles.filter((_, i) => i % k === 0); }
+        const total = tiles.length || 1; let done = 0, idx = 0;
+        async function worker() {
+          while (idx < tiles.length) {
+            const [z, x, y] = tiles[idx++];
+            try { await fetch(`${CARTO}/${z}/${x}/${y}@2x.png`, { mode: 'no-cors' }); } catch (e) {}
+            done++; onProgress(done / total);
+          }
+        }
+        await Promise.all(Array.from({ length: 6 }, worker)); // 6 parallel fetches
       }
 
       function download(r, rowEl) {
         const btn = rowEl.querySelector('.pcGet');
         if (!btn || btn.classList.contains('busy')) return;
         btn.classList.add('busy'); btn.textContent = '0%';
-        const t0 = performance.now(), DUR = 1700;
-        (function step(now) {
-          const p = Math.min(1, (now - t0) / DUR);
-          btn.textContent = Math.round(p * 100) + '%';
-          if (p < 1) requestAnimationFrame(step);
-          else { r.downloaded = true; r.cov = 0; renderCities(); switchRegion(r); }
-        })(t0);
+        preload(r, p => { btn.textContent = Math.round(p * 100) + '%'; })
+          .then(() => { r.downloaded = true; r.cov = 0; renderCities(); switchRegion(r); });
       }
 
       function renderCities() {
@@ -968,7 +1089,9 @@
       if ($('pClose')) $('pClose').addEventListener('click', closeProfile);
       if ($('profileScrim')) $('profileScrim').addEventListener('click', closeProfile);
 
-      renderCities();
+      // Replace boot's small world-rect fog with the proper region-bbox fog for the
+      // active region (no fly — keep the current view).
+      applyRegionData(REGIONS.find(r => r.active) || REGIONS[0], false);
     });
   })();
   </script>
