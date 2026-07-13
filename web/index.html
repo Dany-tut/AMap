@@ -234,6 +234,22 @@
       transition: transform .12s; }
     #obNext:active { transform: scale(0.95); }
     #obSkip { margin-top: 14px; border: none; background: none; color: #9591a8; font-size: 14px; font-weight: 600; cursor: pointer; }
+
+    /* region quick-switch dropdown (anchored under the city pill) */
+    #regionMenu { position: absolute; z-index: 9; min-width: 232px; background: #fff; border-radius: 18px;
+      padding: 7px; box-shadow: 0 16px 44px rgba(60,50,90,0.30); transform-origin: top left;
+      transform: scale(0.94) translateY(-6px); opacity: 0; pointer-events: none; transition: all .2s cubic-bezier(.22,1,.36,1); }
+    #regionMenu.open { transform: none; opacity: 1; pointer-events: auto; }
+    .rmItem { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 12px; cursor: pointer; }
+    .rmItem:active { transform: scale(0.98); }
+    .rmItem.active { background: #f1eefe; }
+    .rmEmoji { font-size: 20px; }
+    .rmName { flex: 1; font-size: 14.5px; font-weight: 600; color: var(--ink); }
+    .rmPct { font-size: 12.5px; font-weight: 700; color: var(--accent); }
+    .rmDivider { height: 1px; background: #f0eef6; margin: 6px 8px; }
+    .rmManage { display: flex; align-items: center; gap: 10px; padding: 10px; font-size: 13.5px; font-weight: 600;
+      color: var(--accent); cursor: pointer; border-radius: 12px; }
+    .rmManage:active { transform: scale(0.98); }
   </style>
 </head>
 <body>
@@ -249,6 +265,7 @@
       <div class="pill" id="legend"></div>
     </div>
   </div>
+  <div id="regionMenu"></div>
   <button id="journalBtn" class="round" title="Журнал">📖<span id="jCount"></span></button>
   <button id="achBtn" class="round" title="Ачивки">🏆<span id="aCount"></span></button>
   <button id="profileBtn" class="round" title="Профиль">🧭</button>
@@ -482,11 +499,9 @@
       document.addEventListener('visibilitychange', () => map.triggerRepaint());
 
       const area = buildArea(track);
-      const [cx, cy] = meta.center, pad = 0.4;
-      const outer = [
-        [cx - pad, cy - pad], [cx + pad, cy - pad],
-        [cx + pad, cy + pad], [cx - pad, cy + pad], [cx - pad, cy - pad]
-      ];
+      // Global fog: the cloud sheet covers the WHOLE world; only ridden corridors are
+      // punched out as holes. Pan/zoom anywhere → clouds, until you open it on foot/wheels.
+      const outer = [[-179, -84], [179, -84], [179, 84], [-179, 84], [-179, -84]];
       const holes = outerRings(area).map(r => r.slice().reverse());
       const fogPolygon = { type: 'Feature', geometry: { type: 'Polygon', coordinates: [outer, ...holes] } };
 
@@ -646,7 +661,7 @@
         map.getSource('fog').setData({ type: 'Feature', geometry: { type: 'Polygon', coordinates: [outer, ...holes] } });
       }
 
-      let riding = false, paused = false, rafId = null, rideBase = null, rideP = 0, prevD = 0;
+      let riding = false, paused = false, rafId = null, rideBase = null, rideP = 0, prevD = 0, following = false;
       function rideStep(ts) {
         if (!riding || paused) return;
         if (rideBase == null) rideBase = ts - rideP * RIDE_MS;
@@ -655,9 +670,15 @@
         revealTo(d);
         const pos = turf.along(track, d, { units: 'kilometers' }).geometry.coordinates;
         map.getSource('rider').setData({ type: 'Feature', geometry: { type: 'Point', coordinates: pos } });
+        // navigation-style follow: keep the rider in view, looking a bit ahead
+        if (following) {
+          const ahead = turf.along(track, Math.min(rideLen, d + 0.18), { units: 'kilometers' }).geometry.coordinates;
+          map.setCenter(ahead);
+        }
         const ac = actAt(rideP);
         map.setPaintProperty('rider-dot', 'circle-color', ac.color);
         map.setPaintProperty('rider-halo', 'circle-color', ac.color);
+        map.setPaintProperty('rider-halo', 'circle-radius', 15 + Math.sin(ts / 300) * 4); // gentle pulse
         $('rideTitle').textContent = ac.emoji + ' ' + ac.label;
         $('s-dist').textContent = d.toFixed(1);
         $('s-cells').textContent = Math.round(fog.features.length * rideP);
@@ -681,7 +702,7 @@
       }
       function startRide() {
         if (riding) return;
-        riding = true; paused = false; rideP = 0; rideBase = null; prevD = 0;
+        riding = true; paused = false; rideP = 0; rideBase = null; prevD = 0; following = false;
         PLACES.forEach(p => p.done = false);
         if (!clouds) { clouds = true; applyClouds(true); cloudBtn.classList.remove('off'); }
         map.getSource('puffs').setData(EMPTY);
@@ -690,8 +711,10 @@
         $('sheet').classList.add('open');
         $('rideBtn').style.display = 'none';
         cloudBtn.style.display = 'none';
-        const bb = turf.bbox(track);
-        map.fitBounds([[bb[0], bb[1]], [bb[2], bb[3]]], { padding: 70, duration: 700 });
+        // Camera zooms in and follows the rider (navigation-style).
+        const startPos = turf.along(track, 0, { units: 'kilometers' }).geometry.coordinates;
+        map.flyTo({ center: startPos, zoom: 15.4, duration: 800, essential: true });
+        setTimeout(() => { if (riding) following = true; }, 820);
         rafId = requestAnimationFrame(rideStep);
       }
       function resumeRide() {
@@ -700,8 +723,10 @@
         rafId = requestAnimationFrame(rideStep);
       }
       function finishRide(done) {
-        riding = false; paused = false;
+        riding = false; paused = false; following = false;
         if (rafId) cancelAnimationFrame(rafId);
+        const bb = turf.bbox(track);
+        map.fitBounds([[bb[0], bb[1]], [bb[2], bb[3]]], { padding: 70, duration: 800 });
         map.getSource('area').setData(fullArea);
         map.getSource('fog').setData(fullFog);
         map.getSource('puffs').setData(fullPuffs);
@@ -964,43 +989,18 @@
       // capture Дананг's explored corridor so its fog keeps the ridden path clear
       const danangArea = JSON.parse(JSON.stringify(map.getSource('area')._data));
 
-      // Fog that covers the REGION: rounded bbox as the outer ring, the explored
-      // corridor (Дананг only) punched out as reverse-wound holes.
-      function regionFog(r) {
-        let ring;
-        try {
-          const [w, s, e, n] = r.bbox;
-          const wk = Math.max(0.5, turf.distance([w, (s + n) / 2], [e, (s + n) / 2], { units: 'kilometers' }));
-          const round = Math.min(40, Math.max(1.2, wk * 0.05));
-          ring = outerRings(turf.buffer(turf.bboxPolygon(r.bbox), round, { units: 'kilometers', steps: 8 }))[0];
-        } catch (e) {
-          const [w, s, e2, n] = r.bbox;
-          ring = [[w, s], [e2, s], [e2, n], [w, n], [w, s]];
-        }
+      // GLOBAL fog: the cloud sheet covers the whole world; only ridden corridors are
+      // holes. Same fog everywhere — switching region just moves the camera. Дананг is
+      // the only region with an explored corridor so far.
+      const WORLD = [[-179, -84], [179, -84], [179, 84], [-179, 84], [-179, -84]];
+      function worldFog(r) {
         const holes = (r.id === 'danang') ? outerRings(danangArea).map(rg => rg.slice().reverse()) : [];
-        return { type: 'Feature', geometry: { type: 'Polygon', coordinates: [ring, ...holes] } };
+        return { type: 'Feature', geometry: { type: 'Polygon', coordinates: [WORLD, ...holes] } };
       }
-      const ringLine = fog => ({ type: 'Feature', geometry: { type: 'LineString', coordinates: fog.geometry.coordinates[0] } });
-
-      // Soft white glow on the region boundary so the cloud bank melts into the clear
-      // world instead of ending on a hard rectangle. Sits above the clouds, below markers.
-      if (!map.getSource('regionEdge')) map.addSource('regionEdge', { type: 'geojson', data: EMPTY });
-      if (!map.getLayer('region-edge')) map.addLayer({
-        id: 'region-edge', type: 'line', source: 'regionEdge',
-        layout: { 'line-join': 'round', 'line-cap': 'round' },
-        paint: {
-          'line-color': '#eef4fb',
-          'line-width': ['interpolate', ['linear'], ['zoom'], 4, 12, 10, 40, 16, 70],
-          'line-blur':  ['interpolate', ['linear'], ['zoom'], 4, 16, 10, 44, 16, 80],
-          'line-opacity': 0.9
-        }
-      }, map.getLayer('area-fill') ? 'area-fill' : undefined);
 
       function applyRegionData(r, fly) {
-        const fog = regionFog(r);
         map.getSource('area').setData(r.id === 'danang' ? danangArea : EMPTY);
-        map.getSource('fog').setData(fog);
-        if (map.getSource('regionEdge')) map.getSource('regionEdge').setData(ringLine(fog));
+        map.getSource('fog').setData(worldFog(r));
         const rb = $('rideBtn'); if (rb) rb.style.display = (r.id === 'danang') ? '' : 'none';
         if ($('regionName')) $('regionName').textContent = r.name;
         if ($('cov')) $('cov').textContent = Math.round(r.cov * 100) + '% открыто';
@@ -1015,12 +1015,6 @@
         applyRegionData(r, true);
       }
 
-      // keep the boundary glow in sync with the cloud toggle (boot's onclick runs first)
-      const cb = $('cloudBtn');
-      if (cb) cb.addEventListener('click', () => {
-        if (map.getLayer('region-edge'))
-          map.setPaintProperty('region-edge', 'line-opacity', cb.classList.contains('off') ? 0 : 0.9);
-      });
 
       // ── Real offline preload: warm the browser cache with CARTO tiles over the
       //    region bbox at a few zoom levels, reporting true progress. ──
@@ -1085,9 +1079,49 @@
       function openProfile() { renderCities(); $('profileScrim').classList.add('open'); $('profileSheet').classList.add('open'); }
       function closeProfile() { $('profileSheet').classList.remove('open'); $('profileScrim').classList.remove('open'); }
       if ($('profileBtn')) $('profileBtn').addEventListener('click', openProfile);
-      if ($('regionPill')) { $('regionPill').style.pointerEvents = 'auto'; $('regionPill').addEventListener('click', openProfile); }
       if ($('pClose')) $('pClose').addEventListener('click', closeProfile);
       if ($('profileScrim')) $('profileScrim').addEventListener('click', closeProfile);
+
+      // ── City quick-switch dropdown on the region pill ──
+      const menu = $('regionMenu');
+      function closeMenu() { if (menu) menu.classList.remove('open'); }
+      function renderMenu() {
+        if (!menu) return;
+        const dl = REGIONS.filter(r => r.downloaded);
+        menu.innerHTML =
+          dl.map(r =>
+            '<div class="rmItem' + (r.active ? ' active' : '') + '" data-id="' + r.id + '">' +
+            '<span class="rmEmoji">' + r.emoji + '</span><span class="rmName">' + r.name + '</span>' +
+            '<span class="rmPct">' + Math.round(r.cov * 100) + '%</span></div>').join('') +
+          '<div class="rmDivider"></div>' +
+          '<div class="rmManage" id="rmManage"><span class="rmEmoji">🗺️</span>Все города · скачать ещё</div>';
+        dl.forEach(() => {});
+        menu.querySelectorAll('.rmItem').forEach(el => {
+          el.onclick = () => {
+            const r = REGIONS.find(x => x.id === el.dataset.id);
+            closeMenu();
+            if (r && !r.active) switchRegion(r);
+          };
+        });
+        $('rmManage').onclick = () => { closeMenu(); openProfile(); };
+      }
+      function toggleMenu() {
+        if (!menu) return;
+        if (menu.classList.contains('open')) { closeMenu(); return; }
+        renderMenu();
+        const rect = $('regionPill').getBoundingClientRect();
+        menu.style.left = rect.left + 'px';
+        menu.style.top = (rect.bottom + 8) + 'px';
+        menu.classList.add('open');
+      }
+      if ($('regionPill')) {
+        $('regionPill').style.pointerEvents = 'auto';
+        $('regionPill').style.cursor = 'pointer';
+        $('regionPill').addEventListener('click', e => { e.stopPropagation(); toggleMenu(); });
+      }
+      document.addEventListener('click', e => {
+        if (menu && menu.classList.contains('open') && !menu.contains(e.target) && e.target !== $('regionPill') && !$('regionPill').contains(e.target)) closeMenu();
+      });
 
       // Replace boot's small world-rect fog with the proper region-bbox fog for the
       // active region (no fly — keep the current view).
