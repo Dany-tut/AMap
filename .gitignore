@@ -13,3 +13,5 @@ web/fog.geojson
 web/meta.json
 web/route.json
 web/track.geojson
+.vercel
+.env*

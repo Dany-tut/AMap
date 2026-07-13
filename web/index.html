@@ -67,7 +67,7 @@
     .maplibregl-ctrl-attrib { font-size: 10px; border-radius: 10px 0 0 0 !important; }
 
     /* right-side control stack: layers + custom zoom */
-    #rightStack { position: absolute; right: 14px; bottom: 26px; z-index: 3;
+    #rightStack { position: absolute; right: 14px; bottom: 108px; z-index: 3;
                   display: flex; flex-direction: column; gap: 10px; align-items: center; }
     #rightStack #cloudBtn { position: static; top: auto; right: auto; bottom: auto; left: auto;
                             transform: none; width: 46px; min-width: 46px; height: 46px;
@@ -161,6 +161,8 @@
     .aCard .achk { position: absolute; top: 10px; right: 10px; width: 20px; height: 20px; border-radius: 50%;
                    background: var(--accent); color: #fff; font-size: 12px; display: flex; align-items: center; justify-content: center; }
     #hint { bottom: 96px; }
+    /* legacy floating organs — replaced by the bottom dock */
+    #journalBtn, #achBtn, #profileBtn, #rideBtn, #rightStack #cloudBtn { display: none !important; }
     #rideBtn { position: absolute; bottom: 26px; left: 50%; transform: translateX(-50%); z-index: 3;
                height: 52px; padding: 0 28px; border: none; border-radius: 26px; background: var(--accent);
                color: #fff; font-size: 16px; font-weight: 600; cursor: pointer;
@@ -181,6 +183,52 @@
     .stat { flex: 1; background: #f4f2fb; border-radius: 16px; padding: 12px 8px; text-align: center; }
     .stat .v { font-size: 24px; font-weight: 700; color: var(--accent); line-height: 1; }
     .stat .l { font-size: 11.5px; color: #8b86a0; margin-top: 6px; font-weight: 600; }
+
+    /* ── bottom glass dock — one element that morphs into a sheet ── */
+    #dockScrim { position: absolute; inset: 0; z-index: 3; background: rgba(28,24,42,0.30);
+      opacity: 0; pointer-events: none; transition: opacity .4s; }
+    #dockScrim.on { opacity: 1; pointer-events: auto; }
+    #dock { position: absolute; left: 12px; right: 12px; bottom: 12px; z-index: 4;
+      background: rgba(255,255,255,0.66); border: 1px solid rgba(255,255,255,0.6);
+      backdrop-filter: blur(22px) saturate(1.5); -webkit-backdrop-filter: blur(22px) saturate(1.5);
+      border-radius: 30px; padding: 2px 12px 12px;
+      box-shadow: 0 14px 44px rgba(50,42,80,0.26);
+      transition: transform .45s cubic-bezier(.22,1,.36,1), border-radius .4s; }
+    #dock.gone { transform: translateY(200%); }
+    #dockGrab { display: flex; justify-content: center; align-items: center; height: 26px;
+      cursor: grab; touch-action: none; }
+    #dockGrab::before { content: ''; width: 38px; height: 5px; border-radius: 3px; background: #cbc6db;
+      transition: background .2s; }
+    #dock.expanded #dockGrab::before { background: #b3aecb; }
+    /* stats — revealed only when expanded */
+    #dockStats { display: flex; gap: 10px; overflow: hidden; max-height: 0; opacity: 0; margin: 0;
+      transition: max-height .4s cubic-bezier(.22,1,.36,1), opacity .3s, margin .4s; }
+    #dock.expanded #dockStats { max-height: 88px; opacity: 1; margin: 2px 2px 14px; }
+    .dStat { flex: 1; background: rgba(124,108,240,0.09); border-radius: 16px; padding: 11px 6px; text-align: center; }
+    .dStat .v { font-size: 22px; font-weight: 800; color: var(--accent); line-height: 1; }
+    .dStat .l { font-size: 11px; color: #8b86a0; margin-top: 5px; font-weight: 700; }
+    /* organ row */
+    #dockRow { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 4px; }
+    .dItem { display: flex; flex-direction: column; align-items: center; gap: 3px;
+      background: none; border: none; cursor: pointer; color: var(--ink); padding: 6px 2px; flex: 1; }
+    .dItem .ic { font-size: 23px; line-height: 1; transition: transform .15s; }
+    .dItem:active .ic { transform: scale(0.82); }
+    .dItem .lb { font-size: 10.5px; font-weight: 700; color: #8b86a0;
+      max-height: 0; opacity: 0; overflow: hidden; transition: max-height .35s, opacity .3s; }
+    #dock.expanded .dItem .lb { max-height: 16px; opacity: 1; }
+    #dItemFog { flex: 0; max-width: 0; opacity: 0; padding: 0; overflow: hidden;
+      transition: max-width .4s cubic-bezier(.22,1,.36,1), opacity .3s; }
+    #dock.expanded #dItemFog { flex: 1; max-width: 70px; opacity: 1; }
+    #dItemFog.off .ic { filter: grayscale(1) opacity(0.55); }
+    /* центральная «Поехали» — пилюля в центре, в раскрытом виде уходит в широкую полосу снизу */
+    .dGo { flex: 0 0 auto; order: 0; background: none; border: none; cursor: pointer; padding: 0 2px; }
+    .goPill { display: flex; align-items: center; justify-content: center; gap: 7px;
+      height: 50px; padding: 0 22px; border-radius: 25px; background: var(--accent); color: #fff;
+      font-size: 16px; font-weight: 700; box-shadow: 0 8px 22px rgba(124,108,240,0.5);
+      transition: transform .15s, height .35s cubic-bezier(.22,1,.36,1); }
+    .dGo:active .goPill { transform: scale(0.94); }
+    #dock.expanded .dGo { order: 10; flex: 1 0 100%; margin-top: 12px; padding: 0; }
+    #dock.expanded .goPill { height: 54px; font-size: 17px; }
 
     /* scrim shared by modals */
     #placeScrim, #journalScrim, #achScrim, #profileScrim { position: absolute; inset: 0; z-index: 5;
@@ -233,9 +281,11 @@
       display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;
       opacity: 1; transition: opacity .45s; }
     #onboard.hide { opacity: 0; pointer-events: none; }
-    .obArt { font-size: 92px; line-height: 1; margin-bottom: 28px; filter: drop-shadow(0 12px 24px rgba(60,50,90,0.18)); }
-    .obTitle { font-size: 27px; font-weight: 700; color: var(--ink); margin-bottom: 14px; max-width: 320px; }
-    .obText { font-size: 16px; color: #6b6680; line-height: 1.55; max-width: 330px; margin-bottom: 34px; }
+    .obArt { font-size: 92px; height: 92px; line-height: 92px; margin-bottom: 28px; filter: drop-shadow(0 12px 24px rgba(60,50,90,0.18)); }
+    .obTitle { font-size: 27px; line-height: 1.2; font-weight: 700; color: var(--ink); margin-bottom: 14px; max-width: 320px;
+      height: 65px; display: flex; align-items: center; justify-content: center; }
+    .obText { font-size: 16px; color: #6b6680; line-height: 1.55; max-width: 330px; margin-bottom: 34px;
+      height: 74px; display: flex; align-items: flex-start; justify-content: center; }
     .obDots { display: flex; gap: 8px; margin-bottom: 26px; }
     .obDot { width: 8px; height: 8px; border-radius: 50%; background: #cec9e6; transition: all .3s; }
     .obDot.on { background: var(--accent); width: 24px; border-radius: 4px; }
@@ -288,6 +338,25 @@
   </div>
 
   <button id="rideBtn">▶ Поехали</button>
+
+  <!-- Bottom glass dock (morphs into a stats sheet on drag) -->
+  <div id="dockScrim"></div>
+  <div id="dock">
+    <div id="dockGrab"></div>
+    <div id="dockStats">
+      <div class="dStat"><div class="v" id="d-cov">15%</div><div class="l">открыто</div></div>
+      <div class="dStat"><div class="v" id="d-cells">26</div><div class="l">ячеек</div></div>
+      <div class="dStat"><div class="v" id="d-ach">0</div><div class="l">трофеев</div></div>
+    </div>
+    <div id="dockRow">
+      <button class="dItem" id="dLoc"><span class="ic">◎</span><span class="lb">Локация</span></button>
+      <button class="dItem" id="dJournal"><span class="ic">📖</span><span class="lb">Дневник</span></button>
+      <button class="dGo" id="dGo"><span class="goPill">▶ Поехали</span></button>
+      <button class="dItem" id="dAch"><span class="ic">🏆</span><span class="lb">Трофеи</span></button>
+      <button class="dItem" id="dProfile"><span class="ic">🧭</span><span class="lb">Компас</span></button>
+      <button class="dItem" id="dItemFog"><span class="ic">☁️</span><span class="lb">Туман</span></button>
+    </div>
+  </div>
 
   <div id="sheet">
     <div class="sheetHead">
@@ -745,8 +814,8 @@
         map.getSource('area').setData(EMPTY);
         map.getSource('fog').setData(fullFog);
         $('sheet').classList.add('open');
-        $('rideBtn').style.display = 'none';
-        cloudBtn.style.display = 'none';
+        $('dock').classList.remove('expanded'); $('dockScrim').classList.remove('on');
+        $('dock').classList.add('gone');
         // Camera zooms in and follows the rider (navigation-style).
         const startPos = turf.along(track, 0, { units: 'kilometers' }).geometry.coordinates;
         map.flyTo({ center: startPos, zoom: 15.4, duration: 800, essential: true });
@@ -769,8 +838,7 @@
         map.getSource('rider').setData(EMPTY);
         $('sheet').classList.remove('open');
         $('rideTitle').textContent = '🚲 Поездка';
-        $('rideBtn').style.display = '';
-        cloudBtn.style.display = '';
+        $('dock').classList.remove('gone');
         progress.sessions += 1;
         if (done) progress.cov = Math.max(progress.cov, 0.15);
         evalAch(false);
@@ -893,6 +961,40 @@
       $('achBtn').onclick = () => { renderAch(); $('achScrim').classList.add('open'); $('achSheet').classList.add('open'); };
       $('aClose').onclick = closeAch;
       $('achScrim').onclick = closeAch;
+
+      // ── Bottom glass dock — collapsed pill morphs into a stats sheet ──
+      const dock = $('dock'), dockScrim = $('dockScrim');
+      function syncDockStats() {
+        const cov = Math.max(0.15, progress.cov);
+        $('d-cov').textContent = Math.round(cov * 100) + '%';
+        $('d-cells').textContent = Math.max(26, progress.cells);
+        $('d-ach').textContent = unlocked.size;
+      }
+      function expandDock() { if (dock.classList.contains('gone')) return; syncDockStats(); dock.classList.add('expanded'); dockScrim.classList.add('on'); }
+      function collapseDock() { dock.classList.remove('expanded'); dockScrim.classList.remove('on'); }
+      function toggleDock() { dock.classList.contains('expanded') ? collapseDock() : expandDock(); }
+      dockScrim.onclick = collapseDock;
+
+      // grabber: tap toggles, vertical drag morphs
+      const grab = $('dockGrab');
+      let dragY = null, dragged = false;
+      grab.addEventListener('pointerdown', e => { dragY = e.clientY; dragged = false; grab.setPointerCapture(e.pointerId); });
+      grab.addEventListener('pointermove', e => {
+        if (dragY === null) return;
+        const dy = e.clientY - dragY;
+        if (Math.abs(dy) > 16) { dragged = true; if (dy < 0) expandDock(); else collapseDock(); dragY = null; }
+      });
+      grab.addEventListener('pointerup', e => { if (!dragged) toggleDock(); dragY = null; try { grab.releasePointerCapture(e.pointerId); } catch (_) {} });
+
+      // organ buttons proxy to the (now hidden) legacy controls
+      $('dLoc').onclick = () => $('me').click();
+      $('dJournal').onclick = () => { collapseDock(); $('journalBtn').click(); };
+      $('dAch').onclick = () => { collapseDock(); $('achBtn').click(); };
+      $('dProfile').onclick = () => { collapseDock(); $('profileBtn').click(); };
+      $('dGo').onclick = () => { collapseDock(); startRide(); };
+      const dFog = $('dItemFog');
+      dFog.onclick = () => { cloudBtn.click(); dFog.classList.toggle('off', !clouds); };
+      dFog.classList.toggle('off', !clouds);
 
       // ── Feature 5: profile / city collection ──
       const CITIES = [
@@ -1038,7 +1140,7 @@
 
       function applyRegionData(r, fly) {
         map.getSource('area').setData(r.id === 'danang' ? danangArea : EMPTY);
-        const rb = $('rideBtn'); if (rb) rb.style.display = (r.id === 'danang') ? '' : 'none';
+        const dk = $('dock'); if (dk) dk.classList.toggle('gone', r.id !== 'danang');
         if ($('regionName')) $('regionName').textContent = r.name;
         if ($('cov')) $('cov').textContent = Math.round(r.cov * 100) + '% открыто';
         if ($('cnt')) $('cnt').textContent = r.cells || 0;
