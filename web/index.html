@@ -39,6 +39,13 @@
             backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
             display: flex; align-items: center; gap: 6px; }
     .pill b { color: var(--accent); }
+    /* activity filter chips (inside the legend pill) */
+    #legend { pointer-events: auto; gap: 5px; padding: 5px 7px; }
+    .fchip { display: inline-flex; align-items: center; gap: 3px; font-size: 12.5px; font-weight: 600;
+      padding: 4px 9px; border-radius: 12px; background: #efeefa; color: var(--ink); cursor: pointer;
+      white-space: nowrap; transition: background .15s, color .15s, opacity .15s; }
+    .fchip:active { transform: scale(0.95); }
+    .fchip.off { background: transparent; color: #b7b3c6; opacity: 0.75; }
 
     /* ── bottom controls ── */
     #cloudBtn { position: absolute; bottom: 26px; left: 50%; transform: translateX(-50%);
@@ -218,6 +225,7 @@
     /* "how it works" link inside the profile */
     #obReopen { width: 100%; margin-top: 10px; height: 44px; border: none; background: #f4f2fb;
       color: var(--accent); font-size: 14px; font-weight: 600; border-radius: 14px; cursor: pointer; }
+    #mapCredit { margin-top: 12px; text-align: center; font-size: 11px; color: #b8b3c8; }
 
     /* onboarding overlay (first launch) */
     #onboard { position: absolute; inset: 0; z-index: 20; padding: 34px 28px 40px;
@@ -350,6 +358,7 @@
     <div class="pSectionTitle">Города</div>
     <div id="pCities"></div>
     <button id="obReopen">Как это работает →</button>
+    <div id="mapCredit">Карта: © OpenStreetMap · © CARTO</div>
   </div>
 
   <!-- Onboarding (first launch) -->
@@ -534,11 +543,29 @@
         return { type: 'FeatureCollection', features: feats };
       }
       const trace = activityTrace();
-      // legend chips
-      document.getElementById('legend').innerHTML = ACT.map(a =>
-        '<span style="display:inline-flex;align-items:center;gap:4px;margin-right:8px">' +
-        '<i style="width:9px;height:9px;border-radius:50%;background:' + a.color + ';display:inline-block"></i>' +
-        a.emoji + '</span>').join('');
+
+      // Activity FILTERS (not colours): toggle chips that show/hide the segments
+      // of each activity on the (single-grey) trace.
+      const activeActs = new Set(ACT.map(a => a.activity));
+      function applyTraceFilter() {
+        if (map.getLayer('trace-line'))
+          map.setFilter('trace-line', ['in', ['get', 'activity'], ['literal', [...activeActs]]]);
+      }
+      function renderFilters() {
+        const host = document.getElementById('legend');
+        host.innerHTML = ACT.map(a =>
+          '<span class="fchip' + (activeActs.has(a.activity) ? '' : ' off') + '" data-act="' + a.activity + '">' +
+          a.emoji + ' ' + a.label + '</span>').join('');
+        host.querySelectorAll('.fchip').forEach(el => {
+          el.onclick = e => {
+            e.stopPropagation();
+            const act = el.dataset.act;
+            activeActs.has(act) ? activeActs.delete(act) : activeActs.add(act);
+            renderFilters(); applyTraceFilter();
+          };
+        });
+      }
+      renderFilters();
 
       map.on('load', () => {
         map.addImage('clouds', cloudTexture(1024), { pixelRatio: 2 });
@@ -549,12 +576,14 @@
         map.addSource('rider', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
         map.addSource('trace', { type: 'geojson', data: trace });
 
-        // Activity-coloured trace, UNDER the clouds so it's revealed with the corridor.
+        // Single grey trace, UNDER the clouds. Activity lives in the feature's
+        // `activity` prop and is shown/hidden with the filter chips (not colour).
         map.addLayer({ id: 'trace-line', type: 'line', source: 'trace',
           layout: { 'line-join': 'round', 'line-cap': 'round' },
-          paint: { 'line-color': ['get', 'color'],
+          paint: { 'line-color': '#7c8291',
                    'line-width': ['interpolate', ['linear'], ['zoom'], 12, 3, 16, 6],
-                   'line-opacity': 0.9 } });
+                   'line-opacity': 0.85 } });
+        applyTraceFilter();
 
         // ── Clouds mode: volumetric white cloud cover over unexplored ground ──
         // soft drop-shadow of the cloud sheet onto the map, along the inner edge
@@ -683,8 +712,8 @@
           map.setCenter(ahead);
         }
         const ac = actAt(rideP);
-        map.setPaintProperty('rider-dot', 'circle-color', ac.color);
-        map.setPaintProperty('rider-halo', 'circle-color', ac.color);
+        map.setPaintProperty('rider-dot', 'circle-color', ACCENT);
+        map.setPaintProperty('rider-halo', 'circle-color', ACCENT);
         map.setPaintProperty('rider-halo', 'circle-radius', 15 + Math.sin(ts / 300) * 4); // gentle pulse
         $('rideTitle').textContent = ac.emoji + ' ' + ac.label;
         $('s-dist').textContent = d.toFixed(1);
