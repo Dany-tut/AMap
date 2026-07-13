@@ -81,6 +81,46 @@
     #achBtn { position: absolute; top: 122px; right: 14px; bottom: auto; left: auto; transform: none;
               width: 44px; min-width: 44px; height: 44px; padding: 0; border-radius: 50%; font-size: 19px; z-index: 3; }
     #achBtn:active { transform: scale(0.9); }
+    #profileBtn { position: absolute; top: 174px; right: 14px; bottom: auto; left: auto; transform: none;
+                  width: 44px; min-width: 44px; height: 44px; padding: 0; border-radius: 50%; font-size: 19px; z-index: 3; }
+    #profileBtn:active { transform: scale(0.9); }
+
+    /* profile / city collection sheet */
+    #profileSheet { position: absolute; left: 12px; right: 12px; bottom: 12px; z-index: 6; max-height: 82%;
+      overflow-y: auto; background: #fff; border-radius: 26px; padding: 18px 18px 20px;
+      box-shadow: 0 16px 50px rgba(60,50,90,0.34);
+      transform: translateY(210%); transition: transform .5s cubic-bezier(.22,1,.36,1); }
+    #profileSheet.open { transform: none; }
+    #pClose { border: none; background: #efe9ff; color: var(--accent); font-weight: 600; font-size: 14px;
+      padding: 9px 18px; border-radius: 14px; cursor: pointer; }
+    .pHeader { display: flex; align-items: center; gap: 14px; margin: 8px 0 18px; }
+    .pAvatar { width: 58px; height: 58px; border-radius: 50%; background: #f1eefe; display: flex;
+      align-items: center; justify-content: center; font-size: 30px; }
+    .pName { font-size: 19px; font-weight: 700; color: var(--ink); }
+    .pSub { font-size: 13px; color: #8b86a0; font-weight: 600; margin-top: 2px; }
+    .pStats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 20px; }
+    .pStat { background: #f6f4fc; border-radius: 14px; padding: 12px 4px; text-align: center; }
+    .pv { font-size: 20px; font-weight: 700; color: var(--accent); line-height: 1; }
+    .pl { font-size: 10.5px; color: #8b86a0; margin-top: 5px; font-weight: 600; }
+    .pSectionTitle { font-size: 13px; font-weight: 700; color: var(--ink); margin: 2px 2px 8px; }
+    .pCity { display: flex; align-items: center; gap: 12px; padding: 11px 0; border-top: 1px solid #f0eef6; }
+    .pCity:first-child { border-top: none; }
+    .pcEmoji { width: 42px; height: 42px; border-radius: 12px; background: #f6f4fc; display: flex;
+      align-items: center; justify-content: center; font-size: 21px; flex-shrink: 0; }
+    .pcMain { flex: 1; min-width: 0; }
+    .pcName { font-size: 14.5px; font-weight: 600; color: var(--ink); margin-bottom: 7px; }
+    .pcBar { height: 7px; border-radius: 4px; background: #edeaf6; overflow: hidden; }
+    .pcFill { height: 100%; background: var(--accent); border-radius: 4px; }
+    .pcPct { font-size: 13px; font-weight: 700; color: var(--accent); min-width: 36px; text-align: right; }
+    .pcPct.zero { color: #b7b3c6; }
+    .pCity { cursor: pointer; }
+    .pCity.active { }
+    .pcName .pcHere { color: var(--accent); font-weight: 700; font-size: 11px; margin-left: 6px;
+      background: #efe9ff; padding: 2px 7px; border-radius: 8px; vertical-align: middle; }
+    .pcGet { border: none; background: var(--accent); color: #fff; font-size: 12.5px; font-weight: 700;
+      padding: 8px 13px; border-radius: 12px; cursor: pointer; white-space: nowrap; flex-shrink: 0; }
+    .pcGet.busy { background: #d9d3f4; color: var(--accent); }
+    .pcSize { font-size: 11.5px; color: #a29fb5; font-weight: 600; margin-top: 6px; }
 
     /* achievement toasts (top-center, auto-dismiss) */
     #achToasts { position: absolute; top: 130px; left: 0; right: 0; z-index: 7;
@@ -134,9 +174,9 @@
     .stat .l { font-size: 11.5px; color: #8b86a0; margin-top: 6px; font-weight: 600; }
 
     /* scrim shared by modals */
-    #placeScrim, #journalScrim, #achScrim { position: absolute; inset: 0; z-index: 5; background: rgba(40,34,60,0.32);
-      opacity: 0; pointer-events: none; transition: opacity .3s; }
-    #placeScrim.open, #journalScrim.open, #achScrim.open { opacity: 1; pointer-events: auto; }
+    #placeScrim, #journalScrim, #achScrim, #profileScrim { position: absolute; inset: 0; z-index: 5;
+      background: rgba(40,34,60,0.32); opacity: 0; pointer-events: none; transition: opacity .3s; }
+    #placeScrim.open, #journalScrim.open, #achScrim.open, #profileScrim.open { opacity: 1; pointer-events: auto; }
 
     /* new-place discovery card */
     #placeCard { position: absolute; left: 12px; right: 12px; bottom: 12px; z-index: 6;
@@ -182,13 +222,14 @@
       <button class="round" id="me" title="Моё местоположение">◎</button>
     </div>
     <div id="pills">
-      <div class="pill">🗺️ Дананг · <b id="cov">—</b></div>
+      <div class="pill" id="regionPill">🗺️ <span id="regionName">Дананг</span> · <b id="cov">—</b> <span style="color:#b8b3c8;font-weight:700">▾</span></div>
       <div class="pill">🔥 <b id="cnt">—</b> ячеек</div>
       <div class="pill" id="legend"></div>
     </div>
   </div>
   <button id="journalBtn" class="round" title="Журнал">📖<span id="jCount"></span></button>
   <button id="achBtn" class="round" title="Ачивки">🏆<span id="aCount"></span></button>
+  <button id="profileBtn" class="round" title="Профиль">🧭</button>
   <div id="achToasts"></div>
 
   <div id="rightStack">
@@ -243,6 +284,30 @@
       <button id="aClose">Закрыть</button>
     </div>
     <div id="aGrid"></div>
+  </div>
+
+  <!-- Profile / city collection -->
+  <div id="profileScrim"></div>
+  <div id="profileSheet">
+    <div class="sheetHead">
+      <div class="sheetTitle">Профиль</div>
+      <button id="pClose">Закрыть</button>
+    </div>
+    <div class="pHeader">
+      <div class="pAvatar">🧭</div>
+      <div>
+        <div class="pName">Исследователь</div>
+        <div class="pSub" id="p-sub">Дананг · 15% открыто</div>
+      </div>
+    </div>
+    <div class="pStats">
+      <div class="pStat"><div class="pv" id="p-cells">26</div><div class="pl">ячеек</div></div>
+      <div class="pStat"><div class="pv" id="p-km">0</div><div class="pl">км всего</div></div>
+      <div class="pStat"><div class="pv" id="p-ach">0</div><div class="pl">ачивок</div></div>
+      <div class="pStat"><div class="pv" id="p-streak">3</div><div class="pl">дня подряд</div></div>
+    </div>
+    <div class="pSectionTitle">Города</div>
+    <div id="pCities"></div>
   </div>
 
   <input type="file" id="photoInput" accept="image/*" style="display:none" />
@@ -735,6 +800,37 @@
       $('aClose').onclick = closeAch;
       $('achScrim').onclick = closeAch;
 
+      // ── Feature 5: profile / city collection ──
+      const CITIES = [
+        { name: 'Дананг', emoji: '🌆', cov: 0.15 },
+        { name: 'Хойан', emoji: '🏮', cov: 0 },
+        { name: 'Хюэ', emoji: '🏯', cov: 0 },
+        { name: 'Ханой', emoji: '🛵', cov: 0 },
+      ];
+      function renderProfile() {
+        const cov = Math.max(0.15, progress.cov);
+        $('p-sub').textContent = 'Дананг · ' + Math.round(cov * 100) + '% открыто';
+        $('p-cells').textContent = Math.max(26, progress.cells);
+        $('p-km').textContent = rideLen.toFixed(1);
+        $('p-ach').textContent = unlocked.size;
+        CITIES[0].cov = cov;
+        const list = $('pCities'); list.innerHTML = '';
+        CITIES.forEach(c => {
+          const pct = Math.round(c.cov * 100);
+          const row = document.createElement('div');
+          row.className = 'pCity';
+          row.innerHTML = '<div class="pcEmoji">' + c.emoji + '</div>' +
+            '<div class="pcMain"><div class="pcName">' + c.name + '</div>' +
+            '<div class="pcBar"><div class="pcFill" style="width:' + pct + '%"></div></div></div>' +
+            '<div class="pcPct' + (pct ? '' : ' zero') + '">' + (pct ? pct + '%' : '—') + '</div>';
+          list.appendChild(row);
+        });
+      }
+      function closeProfile() { $('profileSheet').classList.remove('open'); $('profileScrim').classList.remove('open'); }
+      $('profileBtn').onclick = () => { renderProfile(); $('profileScrim').classList.add('open'); $('profileSheet').classList.add('open'); };
+      $('pClose').onclick = closeProfile;
+      $('profileScrim').onclick = closeProfile;
+
       // ── Geolocation ──
       document.getElementById('me').onclick = () => {
         if (!navigator.geolocation) { hint('Геолокация недоступна в этом браузере'); return; }
@@ -768,6 +864,113 @@
       document.getElementById('q').addEventListener('keydown', e => { if (e.key === 'Enter') search(); });
     }
     boot();
+  </script>
+
+  <!-- ── Regions: downloadable cities / regions, wired into the Profile → Города list.
+       Self-contained: waits for the map, drives switching via the public fog/area
+       sources, so it doesn't touch boot()'s internals. ── -->
+  <script>
+  (function () {
+    const $ = id => document.getElementById(id);
+    const EMPTY = { type: 'FeatureCollection', features: [] };
+
+    // Region catalog. Дананг ships explored (its real track); the rest start fully
+    // clouded — you download the tiles, then go ride to disperse the fog yourself.
+    const REGIONS = [
+      { id: 'danang',  emoji: '🏖️', name: 'Дананг',            where: 'Вьетнам',  center: [108.2245, 16.0637], zoom: 14,   pad: 0.18, size: '82 МБ',  downloaded: true,  cov: 0.15, cells: 26, active: true },
+      { id: 'dalat',   emoji: '🌲', name: 'Далат',             where: 'Вьетнам',  center: [108.4419, 11.9404], zoom: 13.5, pad: 0.16, size: '58 МБ',  downloaded: false, cov: 0 },
+      { id: 'bangkok', emoji: '🛕', name: 'Бангкок',           where: 'Таиланд',  center: [100.5018, 13.7563], zoom: 12.5, pad: 0.30, size: '146 МБ', downloaded: false, cov: 0 },
+      { id: 'krd',     emoji: '🌻', name: 'Краснодарский край', where: 'Россия',   center: [39.030, 45.300],    zoom: 8.5,  pad: 1.20, size: '0.9 ГБ',  downloaded: false, cov: 0 },
+      { id: 'vietnam', emoji: '🇻🇳', name: 'Вьетнам',           where: 'Страна',   center: [106.30, 16.50],     zoom: 6,    pad: 3.50, size: '2.4 ГБ',  downloaded: false, cov: 0 },
+    ];
+
+    function whenReady(cb) {
+      const t = setInterval(() => {
+        const m = window.__m;
+        if (m && m.getSource && m.getSource('fog') && m.getSource('area') && m.isStyleLoaded()) {
+          clearInterval(t); cb(m);
+        }
+      }, 120);
+    }
+
+    whenReady(map => {
+      // capture Дананг's explored geometry so re-selecting it restores the corridor
+      const danangFog  = JSON.parse(JSON.stringify(map.getSource('fog')._data));
+      const danangArea = JSON.parse(JSON.stringify(map.getSource('area')._data));
+
+      const rectFog = r => {
+        const [x, y] = r.center, p = r.pad;
+        return { type: 'Feature', geometry: { type: 'Polygon', coordinates: [[
+          [x - p, y - p], [x + p, y - p], [x + p, y + p], [x - p, y + p], [x - p, y - p]
+        ]] } };
+      };
+
+      function switchRegion(r) {
+        REGIONS.forEach(x => x.active = false); r.active = true;
+        map.flyTo({ center: r.center, zoom: r.zoom, duration: 900, essential: true });
+        if (r.id === 'danang') {
+          map.getSource('area').setData(danangArea);
+          map.getSource('fog').setData(danangFog);
+        } else {
+          map.getSource('area').setData(EMPTY);        // nothing explored yet
+          map.getSource('fog').setData(rectFog(r));    // whole region under clouds
+        }
+        const rb = $('rideBtn'); if (rb) rb.style.display = (r.id === 'danang') ? '' : 'none';
+        if ($('regionName')) $('regionName').textContent = r.name;
+        if ($('cov')) $('cov').textContent = Math.round(r.cov * 100) + '% открыто';
+        if ($('cnt')) $('cnt').textContent = r.cells || 0;
+        if ($('p-sub')) $('p-sub').textContent = r.name + ' · ' + Math.round(r.cov * 100) + '% открыто';
+        map.triggerRepaint();
+        renderCities();
+      }
+
+      function download(r, rowEl) {
+        const btn = rowEl.querySelector('.pcGet');
+        if (!btn || btn.classList.contains('busy')) return;
+        btn.classList.add('busy'); btn.textContent = '0%';
+        const t0 = performance.now(), DUR = 1700;
+        (function step(now) {
+          const p = Math.min(1, (now - t0) / DUR);
+          btn.textContent = Math.round(p * 100) + '%';
+          if (p < 1) requestAnimationFrame(step);
+          else { r.downloaded = true; r.cov = 0; renderCities(); switchRegion(r); }
+        })(t0);
+      }
+
+      function renderCities() {
+        const host = $('pCities'); if (!host) return;
+        host.innerHTML = '';
+        REGIONS.forEach(r => {
+          const row = document.createElement('div');
+          row.className = 'pCity' + (r.active ? ' active' : '');
+          const pct = Math.round(r.cov * 100);
+          let right, main;
+          if (r.downloaded) {
+            main = '<div class="pcName">' + r.name + (r.active ? '<span class="pcHere">ЗДЕСЬ</span>' : '') + '</div>' +
+                   '<div class="pcBar"><div class="pcFill" style="width:' + Math.max(3, pct) + '%"></div></div>';
+            right = '<div class="pcPct' + (pct === 0 ? ' zero' : '') + '">' + pct + '%</div>';
+          } else {
+            main = '<div class="pcName">' + r.name + '</div><div class="pcSize">' + r.where + ' · ' + r.size + '</div>';
+            right = '<button class="pcGet">Скачать</button>';
+          }
+          row.innerHTML = '<div class="pcEmoji">' + r.emoji + '</div><div class="pcMain">' + main + '</div>' + right;
+          if (r.downloaded) row.onclick = () => { if (!r.active) switchRegion(r); closeProfile(); };
+          else row.querySelector('.pcGet').onclick = e => { e.stopPropagation(); download(r, row); };
+          host.appendChild(row);
+        });
+      }
+
+      // ── open/close the Profile → Города sheet ──
+      function openProfile() { renderCities(); $('profileScrim').classList.add('open'); $('profileSheet').classList.add('open'); }
+      function closeProfile() { $('profileSheet').classList.remove('open'); $('profileScrim').classList.remove('open'); }
+      if ($('profileBtn')) $('profileBtn').addEventListener('click', openProfile);
+      if ($('regionPill')) { $('regionPill').style.pointerEvents = 'auto'; $('regionPill').addEventListener('click', openProfile); }
+      if ($('pClose')) $('pClose').addEventListener('click', closeProfile);
+      if ($('profileScrim')) $('profileScrim').addEventListener('click', closeProfile);
+
+      renderCities();
+    });
+  })();
   </script>
 </body>
 </html>
