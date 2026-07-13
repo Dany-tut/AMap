@@ -1,0 +1,13 @@
+.DS_Store
+/.build
+/Packages
+xcuserdata/
+DerivedData/
+.swiftpm/
+*.pmtiles
+Sources/
+Tests/
+Package.swift
+.git
+.vercel
+.env*
