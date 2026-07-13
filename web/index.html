@@ -86,27 +86,29 @@
     #profileBtn:active { transform: scale(0.9); }
 
     /* profile / city collection sheet */
-    #profileSheet { position: absolute; left: 12px; right: 12px; bottom: 12px; z-index: 6; max-height: 82%;
-      overflow-y: auto; background: #fff; border-radius: 26px; padding: 18px 18px 20px;
+    #profileSheet { position: absolute; left: 12px; right: 12px; bottom: 12px; z-index: 6; max-height: 92%;
+      overflow-y: auto; background: #fff; border-radius: 26px; padding: 16px 18px 18px;
       box-shadow: 0 16px 50px rgba(60,50,90,0.34);
-      transform: translateY(210%); transition: transform .5s cubic-bezier(.22,1,.36,1); }
+      transform: translateY(210%); transition: transform .5s cubic-bezier(.22,1,.36,1);
+      scrollbar-width: none; }
+    #profileSheet::-webkit-scrollbar { display: none; }
     #profileSheet.open { transform: none; }
     #pClose { border: none; background: #efe9ff; color: var(--accent); font-weight: 600; font-size: 14px;
       padding: 9px 18px; border-radius: 14px; cursor: pointer; }
-    .pHeader { display: flex; align-items: center; gap: 14px; margin: 8px 0 18px; }
-    .pAvatar { width: 58px; height: 58px; border-radius: 50%; background: #f1eefe; display: flex;
-      align-items: center; justify-content: center; font-size: 30px; }
+    .pHeader { display: flex; align-items: center; gap: 12px; margin: 4px 0 14px; }
+    .pAvatar { width: 52px; height: 52px; border-radius: 50%; background: #f1eefe; display: flex;
+      align-items: center; justify-content: center; font-size: 27px; }
     .pName { font-size: 19px; font-weight: 700; color: var(--ink); }
     .pSub { font-size: 13px; color: #8b86a0; font-weight: 600; margin-top: 2px; }
-    .pStats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 20px; }
-    .pStat { background: #f6f4fc; border-radius: 14px; padding: 12px 4px; text-align: center; }
-    .pv { font-size: 20px; font-weight: 700; color: var(--accent); line-height: 1; }
-    .pl { font-size: 10.5px; color: #8b86a0; margin-top: 5px; font-weight: 600; }
-    .pSectionTitle { font-size: 13px; font-weight: 700; color: var(--ink); margin: 2px 2px 8px; }
-    .pCity { display: flex; align-items: center; gap: 12px; padding: 11px 0; border-top: 1px solid #f0eef6; }
+    .pStats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 14px; }
+    .pStat { background: #f6f4fc; border-radius: 14px; padding: 10px 4px; text-align: center; }
+    .pv { font-size: 19px; font-weight: 700; color: var(--accent); line-height: 1; }
+    .pl { font-size: 10.5px; color: #8b86a0; margin-top: 4px; font-weight: 600; }
+    .pSectionTitle { font-size: 13px; font-weight: 700; color: var(--ink); margin: 2px 2px 6px; }
+    .pCity { display: flex; align-items: center; gap: 12px; padding: 8px 0; border-top: 1px solid #f0eef6; }
     .pCity:first-child { border-top: none; }
-    .pcEmoji { width: 42px; height: 42px; border-radius: 12px; background: #f6f4fc; display: flex;
-      align-items: center; justify-content: center; font-size: 21px; flex-shrink: 0; }
+    .pcEmoji { width: 38px; height: 38px; border-radius: 11px; background: #f6f4fc; display: flex;
+      align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; }
     .pcMain { flex: 1; min-width: 0; }
     .pcName { font-size: 14.5px; font-weight: 600; color: var(--ink); margin-bottom: 7px; }
     .pcBar { height: 7px; border-radius: 4px; background: #edeaf6; overflow: hidden; }
@@ -214,7 +216,7 @@
     #jEmpty { color: #a29fb5; font-size: 14px; line-height: 1.5; padding: 10px 2px 4px; }
 
     /* "how it works" link inside the profile */
-    #obReopen { width: 100%; margin-top: 16px; height: 46px; border: none; background: #f4f2fb;
+    #obReopen { width: 100%; margin-top: 10px; height: 44px; border: none; background: #f4f2fb;
       color: var(--accent); font-size: 14px; font-weight: 600; border-radius: 14px; cursor: pointer; }
 
     /* onboarding overlay (first launch) */
@@ -489,7 +491,7 @@
             } }
           ]
         },
-        center: meta.center, zoom: meta.zoom, attributionControl: { compact: true }
+        center: meta.center, zoom: meta.zoom, attributionControl: false
       });
       window.__m = map;
       document.getElementById('zin').onclick = () => map.zoomIn({ duration: 300 });
@@ -499,9 +501,14 @@
       document.addEventListener('visibilitychange', () => map.triggerRepaint());
 
       const area = buildArea(track);
-      // Global fog: the cloud sheet covers the WHOLE world; only ridden corridors are
-      // punched out as holes. Pan/zoom anywhere → clouds, until you open it on foot/wheels.
-      const outer = [[-179, -84], [179, -84], [179, 84], [-179, 84], [-179, -84]];
+      // Fog outer ring: a box generously around the demo area. The regions module
+      // makes it follow the camera (moveend) so clouds cover the whole world as you
+      // pan; this local box is what the live-ride reveal uses while zoomed in.
+      const [ocx, ocy] = meta.center, opad = 3;
+      const outer = [
+        [ocx - opad, ocy - opad], [ocx + opad, ocy - opad],
+        [ocx + opad, ocy + opad], [ocx - opad, ocy + opad], [ocx - opad, ocy - opad]
+      ];
       const holes = outerRings(area).map(r => r.slice().reverse());
       const fogPolygon = { type: 'Feature', geometry: { type: 'Polygon', coordinates: [outer, ...holes] } };
 
@@ -866,23 +873,13 @@
         { name: 'Ханой', emoji: '🛵', cov: 0 },
       ];
       function renderProfile() {
+        // Only the header stats here; the city list (#pCities) is owned by the
+        // region script (renderCities) — don't double-render / overwrite it.
         const cov = Math.max(0.15, progress.cov);
         $('p-sub').textContent = 'Дананг · ' + Math.round(cov * 100) + '% открыто';
         $('p-cells').textContent = Math.max(26, progress.cells);
         $('p-km').textContent = rideLen.toFixed(1);
         $('p-ach').textContent = unlocked.size;
-        CITIES[0].cov = cov;
-        const list = $('pCities'); list.innerHTML = '';
-        CITIES.forEach(c => {
-          const pct = Math.round(c.cov * 100);
-          const row = document.createElement('div');
-          row.className = 'pCity';
-          row.innerHTML = '<div class="pcEmoji">' + c.emoji + '</div>' +
-            '<div class="pcMain"><div class="pcName">' + c.name + '</div>' +
-            '<div class="pcBar"><div class="pcFill" style="width:' + pct + '%"></div></div></div>' +
-            '<div class="pcPct' + (pct ? '' : ' zero') + '">' + (pct ? pct + '%' : '—') + '</div>';
-          list.appendChild(row);
-        });
       }
       function closeProfile() { $('profileSheet').classList.remove('open'); $('profileScrim').classList.remove('open'); }
       $('profileBtn').onclick = () => { renderProfile(); $('profileScrim').classList.add('open'); $('profileSheet').classList.add('open'); };
@@ -989,24 +986,39 @@
       // capture Дананг's explored corridor so its fog keeps the ridden path clear
       const danangArea = JSON.parse(JSON.stringify(map.getSource('area')._data));
 
-      // GLOBAL fog: the cloud sheet covers the whole world; only ridden corridors are
-      // holes. Same fog everywhere — switching region just moves the camera. Дананг is
-      // the only region with an explored corridor so far.
-      const WORLD = [[-179, -84], [179, -84], [179, 84], [-179, 84], [-179, -84]];
-      function worldFog(r) {
-        const holes = (r.id === 'danang') ? outerRings(danangArea).map(rg => rg.slice().reverse()) : [];
-        return { type: 'Feature', geometry: { type: 'Polygon', coordinates: [WORLD, ...holes] } };
+      // GLOBAL fog that FOLLOWS THE CAMERA: the cloud sheet always covers the current
+      // viewport (+ margin) so wherever you pan/zoom it's clouds — only ridden corridors
+      // are holes. A single world-spanning polygon won't tessellate in MapLibre, so we
+      // rebuild the outer ring to the visible bounds on every move instead.
+      const activeRegion = () => REGIONS.find(r => r.active) || REGIONS[0];
+      const currentHoles = () => outerRings(map.getSource('area')._data).map(rg => rg.slice().reverse());
+      function viewportFog() {
+        const b = map.getBounds();
+        const w = b.getWest(), s = b.getSouth(), e = b.getEast(), n = b.getNorth();
+        const mx = Math.max(0.02, (e - w) * 0.7), my = Math.max(0.02, (n - s) * 0.7); // 70% margin
+        const W = Math.max(-179, w - mx), E = Math.min(179, e + mx);
+        const S = Math.max(-84, s - my), N = Math.min(84, n + my);
+        const outer = [[W, S], [E, S], [E, N], [W, N], [W, S]];
+        return { type: 'Feature', geometry: { type: 'Polygon', coordinates: [outer, ...currentHoles()] } };
       }
+      // boot's live-ride owns the fog while a ride sheet is open — don't fight it.
+      const riding = () => { const s = $('sheet'); return s && s.classList.contains('open'); };
+      function refreshFog() { if (!riding()) map.getSource('fog').setData(viewportFog()); }
+      map.on('moveend', refreshFog);
+      map.on('move', () => { if (!riding()) map.triggerRepaint(); });
 
       function applyRegionData(r, fly) {
         map.getSource('area').setData(r.id === 'danang' ? danangArea : EMPTY);
-        map.getSource('fog').setData(worldFog(r));
         const rb = $('rideBtn'); if (rb) rb.style.display = (r.id === 'danang') ? '' : 'none';
         if ($('regionName')) $('regionName').textContent = r.name;
         if ($('cov')) $('cov').textContent = Math.round(r.cov * 100) + '% открыто';
         if ($('cnt')) $('cnt').textContent = r.cells || 0;
         if ($('p-sub')) $('p-sub').textContent = r.name + ' · ' + Math.round(r.cov * 100) + '% открыто';
-        if (fly) map.flyTo({ center: r.center, zoom: r.zoom, duration: 900, essential: true });
+        if (fly) {
+          map.once('moveend', refreshFog);
+          map.flyTo({ center: r.center, zoom: r.zoom, duration: 900, essential: true });
+        }
+        refreshFog();
         map.triggerRepaint();
         renderCities();
       }
@@ -1069,8 +1081,9 @@
             right = '<button class="pcGet">Скачать</button>';
           }
           row.innerHTML = '<div class="pcEmoji">' + r.emoji + '</div><div class="pcMain">' + main + '</div>' + right;
-          if (r.downloaded) row.onclick = () => { if (!r.active) switchRegion(r); closeProfile(); };
-          else row.querySelector('.pcGet').onclick = e => { e.stopPropagation(); download(r, row); };
+          // tapping any city flies the camera to it (locked regions preview under clouds)
+          row.onclick = () => { switchRegion(r); closeProfile(); };
+          if (!r.downloaded) row.querySelector('.pcGet').onclick = e => { e.stopPropagation(); download(r, row); };
           host.appendChild(row);
         });
       }
