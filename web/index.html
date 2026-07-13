@@ -196,7 +196,7 @@
     .pcHead { margin-bottom: 10px; }
     .pcNew { background: var(--accent); color: #fff; font-size: 12px; font-weight: 700;
       padding: 5px 13px; border-radius: 12px; letter-spacing: .3px; }
-    .pcName { font-size: 23px; font-weight: 700; color: var(--ink); margin: 12px 0 3px; }
+    #pcName { font-size: 23px; font-weight: 700; color: var(--ink); margin: 12px 0 3px; }
     .pcCat { font-size: 14px; color: #8b86a0; font-weight: 500; margin-bottom: 18px; }
     .pcActions { display: flex; gap: 10px; margin-bottom: 10px; }
     .pcBtn { flex: 1; height: 52px; border: none; border-radius: 16px; background: #f1eefe;
@@ -391,11 +391,11 @@
     // the lumps look natural. Stays geographic, so the puffiness holds at any zoom.
     function buildArea(track) {
       const len = turf.length(track, { units: 'kilometers' });
-      const step = 0.045; // a puff roughly every 45 m
+      const step = 0.018; // a puff roughly every 18 m so the smaller circles still overlap
       let u = null, idx = 0;
       for (let d = 0; d <= len + step; d += step, idx++) {
         const p = turf.along(track, Math.min(d, len), { units: 'kilometers' });
-        const jig = 0.038 + 0.024 * ((Math.sin(idx * 12.9898) * 43758.5453) % 1 + 1) % 1; // 38–62 m
+        const jig = 0.016 + 0.010 * ((Math.sin(idx * 12.9898) * 43758.5453) % 1 + 1) % 1; // 16–26 m — a "sight zone", narrow enough to leave side streets visible
         const c = turf.circle(p, jig, { steps: 14, units: 'kilometers' });
         u = u ? (turf.union(u, c) || u) : c;
       }
