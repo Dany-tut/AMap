@@ -7,11 +7,8 @@ DerivedData/
 .swiftpm/
 *.pmtiles
 
-# Locally cached OSM tiles for the web preview (regenerable)
-web/tiles/
-web/fog.geojson
-web/meta.json
-web/route.json
-web/track.geojson
+# NB: web/tiles + geojson data are committed on purpose — the Vercel
+# git-integration deploy builds from the repo, so these must be tracked
+# or the app 404s its map data in production.
 .vercel
 .env*
