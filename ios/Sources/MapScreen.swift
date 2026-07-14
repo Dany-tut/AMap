@@ -1,4 +1,24 @@
 import SwiftUI
+import AMapsDomain
+
+extension ActivityType {
+    var emoji: String {
+        switch self {
+        case .walking: "🚶"
+        case .cycling: "🚲"
+        case .automotive: "🚗"
+        case .unknown: "🧭"
+        }
+    }
+    var label: String {
+        switch self {
+        case .walking: "Пешком"
+        case .cycling: "Вело"
+        case .automotive: "Авто"
+        case .unknown: "—"
+        }
+    }
+}
 
 private let accent = Color(red: 0.486, green: 0.424, blue: 0.941) // #7c6cf0
 private let ink = Color(red: 0.227, green: 0.208, blue: 0.314)     // #3a3550
@@ -33,6 +53,7 @@ struct MapScreen: View {
                 HStack(spacing: 8) {
                     regionPill
                     cellsPill
+                    activityPill
                     Spacer(minLength: 0)
                 }
                 .padding(.horizontal, 14)
@@ -81,6 +102,17 @@ struct MapScreen: View {
             Text("ячеек").foregroundStyle(ink)
         }
         .pillStyle()
+    }
+
+    /// Auto-detected activity (CoreMotion). Tap to override / demo.
+    private var activityPill: some View {
+        Button { model.cycleActivity() } label: {
+            HStack(spacing: 5) {
+                Text(model.activity.emoji)
+                Text(model.activity.label).foregroundStyle(ink)
+            }
+            .pillStyle()
+        }
     }
 
     // MARK: Right control stack (locate + zoom)

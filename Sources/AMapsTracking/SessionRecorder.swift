@@ -40,6 +40,12 @@ public final class SessionRecorder {
         return true
     }
 
+    /// Update the active mode mid-session (e.g. CoreMotion auto-detect switching
+    /// from walking to cycling). New cells are tagged with the latest activity.
+    public func setActivity(_ activity: ActivityType) {
+        session.activity = activity
+    }
+
     public func finish(at time: Date = .now) -> Session {
         session.endedAt = time
         return session

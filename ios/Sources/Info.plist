@@ -24,6 +24,8 @@
 	<string>AMaps фиксирует пройденные улицы, даже когда приложение свёрнуто.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>AMaps раскрывает карту там, где вы побывали.</string>
+	<key>NSMotionUsageDescription</key>
+	<string>AMaps определяет, идёте вы, едете на велосипеде или в машине, чтобы отметить активность поездки.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

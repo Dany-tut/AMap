@@ -13,6 +13,8 @@ final class AppModel: ObservableObject {
     @Published var coveragePercent = 15
     @Published var cellCount = 0
     @Published var riding = false
+    /// Auto-detected mode for the current ride (CoreMotion).
+    @Published var activity: ActivityType = .cycling
 
     /// Interior rings (open cells) that punch holes in the cloud layer.
     @Published var fogHoles: [[Coordinate]] = []
@@ -27,6 +29,7 @@ final class AppModel: ObservableObject {
     private var recorder: SessionRecorder?
 
     private let tracker = LocationTracker()
+    private let activityDetector = ActivityDetector()
     /// Path revealed during the current/last live ride.
     private var liveRoute: [Coordinate] = []
     /// The seeded demo corridor ring, always shown as a base reveal.
@@ -56,6 +59,22 @@ final class AppModel: ObservableObject {
         tracker.onFix = { [weak self] coord, _ in
             MainActor.assumeIsolated { self?.appendLiveFix(coord) }
         }
+        activityDetector.onChange = { [weak self] activity in
+            MainActor.assumeIsolated { self?.applyActivity(activity) }
+        }
+    }
+
+    /// CoreMotion reported a new mode — tag future cells and reflect it in the UI.
+    private func applyActivity(_ a: ActivityType) {
+        activity = a
+        recorder?.setActivity(a)
+    }
+
+    /// Manual override / demo fallback (CoreMotion is unavailable on Simulator).
+    func cycleActivity() {
+        let order: [ActivityType] = [.walking, .cycling, .automotive]
+        let i = order.firstIndex(of: activity) ?? 1
+        applyActivity(order[(i + 1) % order.count])
     }
 
     func toggleRide() {
@@ -63,16 +82,18 @@ final class AppModel: ObservableObject {
     }
 
     private func startRide() {
-        let recorder = composition.startSession(activity: .cycling)
+        let recorder = composition.startSession(activity: activity)
         self.recorder = recorder
         liveRoute = []
         riding = true
         tracker.requestWhenInUse()
         tracker.startActive(recorder: recorder)
+        activityDetector.start()
     }
 
     private func stopRide() {
         tracker.stopActive()
+        activityDetector.stop()
         _ = recorder?.finish()
         recorder = nil
         riding = false
