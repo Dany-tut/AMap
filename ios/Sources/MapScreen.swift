@@ -168,7 +168,8 @@ struct MapScreen: View {
     private let iconH: CGFloat = 46       // icon glyph row height
     private let labelH: CGFloat = 18      // label height when open
     private let goH0: CGFloat = 50        // collapsed pill height
-    private let goH1: CGFloat = 58        // expanded bar height
+    private let goH1: CGFloat = 72        // expanded bar height (2×inner radius so
+                                          // its capsule matches the stat tiles)
     private let goW0: CGFloat = 138       // collapsed pill width
     private let dragRange: CGFloat = 150  // drag distance for a full morph
 
