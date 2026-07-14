@@ -48,7 +48,6 @@ struct MapScreen: View {
     var body: some View {
         ZStack(alignment: .bottom) {
             MapLibreView(center: model.center,
-                         fogOuter: model.fogOuter,
                          fogHoles: model.fogHoles,
                          controller: map)
                 .ignoresSafeArea()

@@ -49,9 +49,6 @@ final class AppModel: ObservableObject {
     /// Danang waterfront — same demo center as the web prototype.
     let center = Coordinate(latitude: 16.0678, longitude: 108.2208)
 
-    /// Cloud exterior: a generous box around the demo city.
-    let fogOuter: [Coordinate]
-
     let composition: AppComposition
     private var recorder: SessionRecorder?
 
@@ -63,15 +60,6 @@ final class AppModel: ObservableObject {
     private let demoCorridor: [Coordinate]
 
     init() {
-        let c = Coordinate(latitude: 16.0678, longitude: 108.2208)
-        let pad = 0.09
-        fogOuter = [
-            Coordinate(latitude: c.latitude - pad, longitude: c.longitude - pad),
-            Coordinate(latitude: c.latitude - pad, longitude: c.longitude + pad),
-            Coordinate(latitude: c.latitude + pad, longitude: c.longitude + pad),
-            Coordinate(latitude: c.latitude + pad, longitude: c.longitude - pad),
-        ]
-
         let g = SlippyGrid()
         composition = (try? AppComposition(store: InMemoryStore(), grid: g))
             ?? { fatalError("composition failed to build") }()

@@ -7,7 +7,6 @@ import AMapsDomain
 /// city with interior holes punched out for every open cell).
 struct MapLibreView: UIViewRepresentable {
     let center: Coordinate
-    let fogOuter: [Coordinate]
     let fogHoles: [[Coordinate]]
     var controller: MapController?
 
@@ -28,7 +27,7 @@ struct MapLibreView: UIViewRepresentable {
     }
 
     func updateUIView(_ uiView: MLNMapView, context: Context) {
-        context.coordinator.apply(outer: fogOuter, holes: fogHoles)
+        context.coordinator.apply(holes: fogHoles)
     }
 
     /// A minimal raster style written to a temp file (MapLibre needs a style URL).
@@ -62,8 +61,8 @@ struct MapLibreView: UIViewRepresentable {
     final class Coordinator: NSObject, MLNMapViewDelegate {
         weak var map: MLNMapView?
         private var style: MLNStyle?
-        private var pendingOuter: [Coordinate] = []
         private var pendingHoles: [[Coordinate]] = []
+        private var lastViewportKey = ""
 
         private let sourceID = "fog"
         private let layerID = "fog-fill"
@@ -75,16 +74,51 @@ struct MapLibreView: UIViewRepresentable {
             rebuild()
         }
 
-        func apply(outer: [Coordinate], holes: [[Coordinate]]) {
-            pendingOuter = outer
+        /// Clouds cover the whole world, so rebuild the exterior ring to follow
+        /// the camera on every move (a single world-spanning polygon isn't
+        /// tessellated reliably — a padded-viewport ring always is).
+        func mapView(_ mapView: MLNMapView, regionDidChangeAnimated animated: Bool) {
+            rebuildIfMoved()
+        }
+
+        /// The initial didFinishLoading fires while the frame is still zero (so
+        /// the viewport reads as the whole world); these fire once it has a real
+        /// size, letting the first valid fog build land.
+        func mapViewDidBecomeIdle(_ mapView: MLNMapView) {
+            rebuildIfMoved()
+        }
+
+        func mapView(_ mapView: MLNMapView, didFinishRenderingMap fullyRendered: Bool) {
+            rebuildIfMoved()
+        }
+
+        func apply(holes: [[Coordinate]]) {
             pendingHoles = holes
             rebuild()
         }
 
-        private func rebuild() {
-            guard let style, !pendingOuter.isEmpty else { return }
+        /// Skip work (and avoid an idle→rebuild→idle loop) when the viewport
+        /// hasn't actually moved.
+        private func rebuildIfMoved() {
+            guard let map else { return }
+            let key = Self.viewportKey(map)
+            guard key != lastViewportKey else { return }
+            rebuild()
+        }
 
-            let feature = Self.fogFeature(outer: pendingOuter, holes: pendingHoles)
+        private func rebuild() {
+            guard let style, let map else { return }
+
+            // Refuse to build from an un-laid-out map (viewport reads as the whole
+            // world → a world-spanning polygon that won't tessellate).
+            let b = map.visibleCoordinateBounds
+            let latSpan = b.ne.latitude - b.sw.latitude
+            let lonSpan = b.ne.longitude - b.sw.longitude
+            guard latSpan > 0, latSpan < 90, lonSpan > 0, lonSpan < 90 else { return }
+            lastViewportKey = Self.viewportKey(map)
+
+            let outer = Self.viewportRing(map)
+            let feature = Self.fogFeature(outer: outer, holes: pendingHoles)
 
             if let existing = style.source(withIdentifier: sourceID) as? MLNShapeSource {
                 existing.shape = feature
@@ -113,6 +147,31 @@ struct MapLibreView: UIViewRepresentable {
             edge.lineBlur = NSExpression(forConstantValue: 9)
             edge.lineOpacity = NSExpression(forConstantValue: 0.85)
             style.addLayer(edge)
+        }
+
+        /// Coarse fingerprint of the viewport, to detect real movement.
+        private static func viewportKey(_ map: MLNMapView) -> String {
+            let b = map.visibleCoordinateBounds
+            func r(_ v: Double) -> Int { Int((v * 2000).rounded()) }
+            return "\(r(b.sw.latitude)),\(r(b.sw.longitude)),\(r(b.ne.latitude)),\(r(b.ne.longitude))"
+        }
+
+        /// A box around the viewport centre, sized to 1.7× the visible span —
+        /// same construction as the (known-good) fixed demo box, just following
+        /// the camera. Clamped so extreme zoom-out stays valid.
+        private static func viewportRing(_ map: MLNMapView) -> [Coordinate] {
+            let c = map.centerCoordinate
+            let b = map.visibleCoordinateBounds
+            let halfLat = min(80, abs(b.ne.latitude - b.sw.latitude) / 2 * 1.7)
+            let halfLon = min(170, abs(b.ne.longitude - b.sw.longitude) / 2 * 1.7)
+            let minLat = c.latitude - halfLat, maxLat = c.latitude + halfLat
+            let minLon = c.longitude - halfLon, maxLon = c.longitude + halfLon
+            return [
+                Coordinate(latitude: minLat, longitude: minLon),
+                Coordinate(latitude: minLat, longitude: maxLon),
+                Coordinate(latitude: maxLat, longitude: maxLon),
+                Coordinate(latitude: maxLat, longitude: minLon),
+            ]
         }
 
         /// Builds one polygon feature: exterior cloud ring with each open cell
