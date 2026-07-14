@@ -41,6 +41,7 @@ struct MapScreen: View {
     @StateObject private var map = MapController()
     @State private var sheet: DockSheet?
     @State private var showRegions = false
+    @State private var dockExpanded = false
 
     /// Equal inset for the floating dock — left, right and bottom all use this.
     private let dockMargin: CGFloat = 22
@@ -142,17 +143,28 @@ struct MapScreen: View {
     // MARK: Bottom dock (nav bar)
 
     private var dock: some View {
-        HStack(spacing: 4) {
-            dockIcon(.search)
-            dockIcon(.journal)
-            Spacer(minLength: 4)
-            rideButton
-            Spacer(minLength: 4)
-            dockIcon(.trophies)
-            dockIcon(.profile)
+        VStack(spacing: 0) {
+            grabber
+
+            if dockExpanded {
+                dockStats
+                    .padding(.top, 4)
+                    .padding(.bottom, 12)
+                    .transition(.opacity.combined(with: .move(edge: .bottom)))
+            }
+
+            HStack(spacing: 4) {
+                dockIcon(.search)
+                dockIcon(.journal)
+                Spacer(minLength: 4)
+                rideButton
+                Spacer(minLength: 4)
+                dockIcon(.trophies)
+                dockIcon(.profile)
+            }
         }
         .padding(.horizontal, 12)
-        .padding(.vertical, 10)
+        .padding(.bottom, 10)
         .background(
             RoundedRectangle(cornerRadius: 30, style: .continuous)
                 .fill(.ultraThinMaterial)
@@ -162,6 +174,50 @@ struct MapScreen: View {
             RoundedRectangle(cornerRadius: 30, style: .continuous)
                 .strokeBorder(.white.opacity(0.5), lineWidth: 1)
         )
+    }
+
+    /// Drag handle — pull up to reveal ride stats, pull down to collapse.
+    private var grabber: some View {
+        Capsule()
+            .fill(Color.secondary.opacity(0.4))
+            .frame(width: 38, height: 5)
+            .frame(maxWidth: .infinity)
+            .padding(.top, 9)
+            .padding(.bottom, 5)
+            .contentShape(Rectangle())
+            .onTapGesture { setDock(!dockExpanded) }
+            .gesture(
+                DragGesture(minimumDistance: 6)
+                    .onEnded { v in
+                        if v.translation.height < -20 { setDock(true) }
+                        else if v.translation.height > 20 { setDock(false) }
+                    }
+            )
+    }
+
+    private func setDock(_ expanded: Bool) {
+        withAnimation(.spring(response: 0.42, dampingFraction: 0.86)) {
+            dockExpanded = expanded
+        }
+    }
+
+    private var dockStats: some View {
+        HStack(spacing: 8) {
+            stat("\(model.coveragePercent)%", "открыто")
+            stat("\(model.cellCount)", "ячеек")
+            stat("0", "трофеев")
+        }
+    }
+
+    private func stat(_ value: String, _ label: String) -> some View {
+        VStack(spacing: 2) {
+            Text(value).font(.title3.bold()).foregroundStyle(accent)
+            Text(label).font(.caption).foregroundStyle(ink.opacity(0.7))
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 12)
+        .background(RoundedRectangle(cornerRadius: 16, style: .continuous)
+            .fill(.white.opacity(0.55)))
     }
 
     private func dockIcon(_ target: DockSheet) -> some View {
