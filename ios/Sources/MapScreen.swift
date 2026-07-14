@@ -85,7 +85,7 @@ struct MapScreen: View {
                     Spacer()
                     rightStack
                 }
-                .padding(.horizontal, 14)
+                .padding(.trailing, 30)   // align with the collapsed dock's right edge
             }
             .padding(.bottom, 96)   // keep the right stack above the dock
 
