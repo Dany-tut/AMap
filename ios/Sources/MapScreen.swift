@@ -184,7 +184,16 @@ struct MapScreen: View {
         topPad + statsH * p + (iconH + labelH * p) + (goH1 + 12) * p + botPad
     }
 
+    /// Grabber sits in its own zone above the glass (within the dock's bounds so
+    /// it stays hit-testable) — the whole dock is one VStack.
     private var dock: some View {
+        VStack(spacing: 0) {
+            grabber
+            dockBody
+        }
+    }
+
+    private var dockBody: some View {
         let p = dockProgress
         return GeometryReader { geo in
             let W = geo.size.width
@@ -220,17 +229,17 @@ struct MapScreen: View {
                 .strokeBorder(.white.opacity(0.5), lineWidth: 1)
         )
         .clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
-        .overlay(alignment: .top) { grabber.offset(y: -15) }
-        .gesture(dockDrag)
     }
 
-    /// Floating pull-tab above the dock.
+    /// Pull-tab above the glass — the only drag target (a second gesture on the
+    /// dock body fought this one and made the morph judder).
     private var grabber: some View {
         Capsule()
-            .fill(Color(white: 0.62))
+            .fill(Color(white: 0.68))
             .frame(width: 42, height: 6)
-            .padding(.horizontal, 26)
-            .padding(.vertical, 12)
+            .frame(maxWidth: .infinity)
+            .padding(.top, 6)
+            .padding(.bottom, 14)
             .contentShape(Rectangle())
             .gesture(dockDrag)
             .onTapGesture { snapDock(dockProgress > 0.5 ? 0 : 1) }
@@ -275,7 +284,8 @@ struct MapScreen: View {
         Button(action: item.action) {
             VStack(spacing: 3) {
                 Image(systemName: item.icon)
-                    .font(.system(size: 21, weight: .medium))
+                    .font(.system(size: 20, weight: .medium))
+                    .frame(height: 24)          // uniform glyph box → labels align
                     .foregroundStyle(ink)
                 Text(item.label)
                     .font(.system(size: 11, weight: .semibold))
