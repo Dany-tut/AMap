@@ -206,11 +206,11 @@
     #dock.expanded { --p: 1; }
     #dock.dragging { transition: transform .45s cubic-bezier(.22,1,.36,1); }  /* no --p easing while finger is down */
     #dock.gone { transform: translateY(200%); }
-    #dockGrab { position: absolute; left: 50%; transform: translateX(-50%); top: -18px;
+    #dockGrab { position: absolute; left: 50%; transform: translateX(-50%); top: -26px;
       height: 22px; display: flex; justify-content: center; align-items: center;
       padding: 0 14px; cursor: grab; touch-action: none; }
     #dockGrab::before { content: ''; width: 38px; height: 5px; border-radius: 3px;
-      background: color-mix(in srgb, #cbc6db, #b3aecb calc(var(--p) * 100%)); }
+      background: color-mix(in srgb, #9c96b3, #8a84a3 calc(var(--p) * 100%)); }
     /* stats */
     #dockStats { display: flex; gap: 10px; overflow: hidden;
       max-height: calc(88px * var(--p));
