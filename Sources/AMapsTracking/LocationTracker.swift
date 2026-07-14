@@ -21,6 +21,9 @@ public final class LocationTracker: NSObject, CLLocationManagerDelegate {
 
     /// Fired when a recorded fix opens new ground (drives achievements + reveal).
     public var onNewCells: ((Int) -> Void)?
+    /// Fired for every accepted fix (coordinate, didOpenNewCell) so the UI can
+    /// grow the live revealed path point-by-point.
+    public var onFix: ((Coordinate, Bool) -> Void)?
     /// Fired in passive mode when the user lingers somewhere (drives place prompts).
     public var onVisit: ((Coordinate, Date) -> Void)?
 
@@ -72,8 +75,10 @@ public final class LocationTracker: NSObject, CLLocationManagerDelegate {
                 speedMetersPerSecond: max(0, loc.speed),
                 horizontalAccuracy: loc.horizontalAccuracy)
             let before = recorder.session.newCellsOpened
-            recorder.ingest(p)
-            opened += recorder.session.newCellsOpened - before
+            let accepted = recorder.ingest(p)
+            let openedThis = recorder.session.newCellsOpened - before
+            if accepted { onFix?(p.coordinate, openedThis > 0) }
+            opened += openedThis
         }
         if opened > 0 { onNewCells?(opened) }
     }

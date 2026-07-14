@@ -26,6 +26,12 @@ final class AppModel: ObservableObject {
     let composition: AppComposition
     private var recorder: SessionRecorder?
 
+    private let tracker = LocationTracker()
+    /// Path revealed during the current/last live ride.
+    private var liveRoute: [Coordinate] = []
+    /// The seeded demo corridor ring, always shown as a base reveal.
+    private let demoCorridor: [Coordinate]
+
     init() {
         let c = Coordinate(latitude: 16.0678, longitude: 108.2208)
         let pad = 0.09
@@ -40,11 +46,16 @@ final class AppModel: ObservableObject {
         composition = (try? AppComposition(store: InMemoryStore(), grid: g))
             ?? { fatalError("composition failed to build") }()
 
-        seedDemoCorridor()
         // Visual reveal = a smooth corridor ribbon along the route (like the web
         // prototype); cells drive the counter, the ribbon drives the look.
-        fogHoles = [Self.corridor(along: Self.demoRoute, radiusMeters: 70)]
+        demoCorridor = Self.corridor(along: Self.demoRoute, radiusMeters: 70)
+        seedDemoCorridor()
+        fogHoles = [demoCorridor]
         cellCount = composition.fog.visitedCount
+
+        tracker.onFix = { [weak self] coord, _ in
+            MainActor.assumeIsolated { self?.appendLiveFix(coord) }
+        }
     }
 
     func toggleRide() {
@@ -52,15 +63,35 @@ final class AppModel: ObservableObject {
     }
 
     private func startRide() {
-        recorder = composition.startSession(activity: .cycling)
+        let recorder = composition.startSession(activity: .cycling)
+        self.recorder = recorder
+        liveRoute = []
         riding = true
+        tracker.requestWhenInUse()
+        tracker.startActive(recorder: recorder)
     }
 
     private func stopRide() {
+        tracker.stopActive()
         _ = recorder?.finish()
         recorder = nil
         riding = false
         cellCount = composition.fog.visitedCount
+    }
+
+    /// A live fix arrived — extend the revealed corridor and refresh counters.
+    private func appendLiveFix(_ coord: Coordinate) {
+        liveRoute.append(coord)
+        rebuildHoles()
+        cellCount = composition.fog.visitedCount
+    }
+
+    private func rebuildHoles() {
+        var holes = [demoCorridor]
+        if liveRoute.count >= 2 {
+            holes.append(Self.corridor(along: liveRoute, radiusMeters: 70))
+        }
+        fogHoles = holes
     }
 
     /// Demo route along the Danang waterfront (same idea as the web prototype).

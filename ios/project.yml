@@ -27,6 +27,8 @@ targets:
           UIApplicationSupportsMultipleScenes: false
         NSLocationWhenInUseUsageDescription: "AMaps раскрывает карту там, где вы побывали."
         NSLocationAlwaysAndWhenInUseUsageDescription: "AMaps фиксирует пройденные улицы, даже когда приложение свёрнуто."
+        UIBackgroundModes:
+          - location
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
     dependencies:
