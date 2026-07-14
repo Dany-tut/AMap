@@ -206,8 +206,12 @@
     #dock.expanded { --p: 1; }
     #dock.dragging { transition: transform .45s cubic-bezier(.22,1,.36,1); }  /* no --p easing while finger is down */
     #dock.gone { transform: translateY(200%); }
-    #dockGrab { display: flex; justify-content: center; align-items: center; height: 26px;
-      margin-bottom: 16px; cursor: grab; touch-action: none; }
+    #dockGrab { position: absolute; left: 50%; transform: translateX(-50%); top: -30px;
+      display: flex; justify-content: center; align-items: center; padding: 8px 18px;
+      border-radius: 14px; background: rgba(255,255,255,0.72);
+      backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+      box-shadow: 0 6px 18px rgba(60,50,90,0.18);
+      cursor: grab; touch-action: none; }
     #dockGrab::before { content: ''; width: 38px; height: 5px; border-radius: 3px;
       background: color-mix(in srgb, #cbc6db, #b3aecb calc(var(--p) * 100%)); }
     /* stats */
