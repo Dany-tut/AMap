@@ -61,7 +61,7 @@ struct MapScreen: View {
     /// edge-to-edge when open. Corner radius grows toward the iPhone's own
     /// screen curvature so the open dock reads as concentric with the device.
     private var dockMargin: CGFloat { lerp(26, 11, dockProgress) }
-    private var dockCorner: CGFloat { lerp(30, 46, dockProgress) }
+    private var dockCorner: CGFloat { lerp(30, 52, dockProgress) }
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -225,15 +225,21 @@ struct MapScreen: View {
         }
         .frame(height: dockHeight(p))
         .background(
-            RoundedRectangle(cornerRadius: dockCorner, style: .continuous)
-                .fill(.ultraThinMaterial)
-                .shadow(color: .black.opacity(0.18), radius: 22, y: 12)
+            ZStack {
+                // Translucent floating glass when collapsed; densifies into a
+                // sheet-like frosted panel as it opens (matches the system sheet).
+                RoundedRectangle(cornerRadius: dockCorner, style: .continuous)
+                    .fill(.ultraThinMaterial)
+                RoundedRectangle(cornerRadius: dockCorner, style: .continuous)
+                    .fill(Color.white.opacity(0.55 * dockProgress))
+            }
+            .shadow(color: .black.opacity(0.18), radius: 22, y: 12)
         )
         .overlay(
             RoundedRectangle(cornerRadius: dockCorner, style: .continuous)
                 .strokeBorder(.white.opacity(0.5), lineWidth: 1)
         )
-        .clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: dockCorner, style: .continuous))
     }
 
     /// Pull-tab above the glass — the only drag target (a second gesture on the
