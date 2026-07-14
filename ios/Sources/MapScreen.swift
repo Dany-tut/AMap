@@ -3,9 +3,23 @@ import SwiftUI
 private let accent = Color(red: 0.486, green: 0.424, blue: 0.941) // #7c6cf0
 private let ink = Color(red: 0.227, green: 0.208, blue: 0.314)     // #3a3550
 
+enum DockSheet: String, Identifiable {
+    case search = "Поиск", journal = "Дневник", trophies = "Трофеи", profile = "Профиль"
+    var id: String { rawValue }
+    var icon: String {
+        switch self {
+        case .search: "magnifyingglass"
+        case .journal: "book"
+        case .trophies: "trophy"
+        case .profile: "safari"
+        }
+    }
+}
+
 struct MapScreen: View {
     @EnvironmentObject var model: AppModel
     @StateObject private var map = MapController()
+    @State private var sheet: DockSheet?
 
     var body: some View {
         ZStack {
@@ -37,6 +51,11 @@ struct MapScreen: View {
                     .padding(.horizontal, 12)
                     .padding(.bottom, 8)
             }
+        }
+        .sheet(item: $sheet) { s in
+            DockSheetView(sheet: s)
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
         }
     }
 
@@ -74,32 +93,37 @@ struct MapScreen: View {
     // MARK: Bottom dock (nav bar)
 
     private var dock: some View {
-        HStack(spacing: 6) {
-            dockIcon("magnifyingglass")
-            dockIcon("book")
-            Spacer(minLength: 6)
+        HStack(spacing: 4) {
+            dockIcon(.search)
+            dockIcon(.journal)
+            Spacer(minLength: 4)
             rideButton
-            Spacer(minLength: 6)
-            dockIcon("trophy")
-            dockIcon("safari")
+            Spacer(minLength: 4)
+            dockIcon(.trophies)
+            dockIcon(.profile)
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 12)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
         .background(
             RoundedRectangle(cornerRadius: 30, style: .continuous)
-                .fill(.white.opacity(0.72))
-                .shadow(color: .black.opacity(0.16), radius: 20, y: 10)
+                .fill(.ultraThinMaterial)
+                .shadow(color: .black.opacity(0.18), radius: 22, y: 12)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 30, style: .continuous)
+                .strokeBorder(.white.opacity(0.5), lineWidth: 1)
         )
     }
 
-    private func dockIcon(_ system: String) -> some View {
+    private func dockIcon(_ target: DockSheet) -> some View {
         Button {
-            // Journal / trophies / profile / search sheets land in a later milestone.
+            sheet = target
         } label: {
-            Image(systemName: system)
+            Image(systemName: target.icon)
                 .font(.system(size: 21, weight: .medium))
                 .foregroundStyle(ink)
                 .frame(width: 44, height: 44)
+                .contentShape(Rectangle())
         }
     }
 
@@ -129,6 +153,28 @@ struct MapScreen: View {
                 .background(Circle().fill(.white.opacity(0.92)))
                 .shadow(color: .black.opacity(0.16), radius: 8, y: 3)
         }
+    }
+}
+
+/// Placeholder content for each dock destination until the real screens land.
+struct DockSheetView: View {
+    let sheet: DockSheet
+
+    var body: some View {
+        VStack(spacing: 14) {
+            Image(systemName: sheet.icon)
+                .font(.system(size: 40, weight: .semibold))
+                .foregroundStyle(accent)
+                .padding(.top, 40)
+            Text(sheet.rawValue)
+                .font(.title2.bold())
+                .foregroundStyle(ink)
+            Text("Скоро")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+            Spacer()
+        }
+        .frame(maxWidth: .infinity)
     }
 }
 

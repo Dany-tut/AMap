@@ -20,6 +20,7 @@ struct MapLibreView: UIViewRepresentable {
             zoomLevel: 14, animated: false)
         map.logoView.isHidden = true
         map.compassView.isHidden = true
+        map.attributionButton.isHidden = true   // demo; move to a proper spot for prod
         map.delegate = context.coordinator
         context.coordinator.map = map
         controller?.map = map
