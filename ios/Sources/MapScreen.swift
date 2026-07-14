@@ -23,6 +23,18 @@ extension ActivityType {
 private let accent = Color(red: 0.486, green: 0.424, blue: 0.941) // #7c6cf0
 private let ink = Color(red: 0.227, green: 0.208, blue: 0.314)     // #3a3550
 
+/// One morphing dock icon: interpolates from a collapsed x-fraction (flanking
+/// the centred «Поехали») to an expanded one (evenly spread, with a label).
+struct DockItem: Identifiable {
+    let id = UUID()
+    let icon: String
+    let label: String
+    let x0: CGFloat
+    let x1: CGFloat
+    var fadeIn: Bool = false      // Туман only exists in the open state
+    let action: () -> Void
+}
+
 enum DockSheet: String, Identifiable {
     case search = "Поиск", journal = "Дневник", trophies = "Трофеи", profile = "Профиль"
     var id: String { rawValue }
@@ -141,35 +153,63 @@ struct MapScreen: View {
         }
     }
 
-    // MARK: Bottom dock (nav bar)
+    // MARK: Bottom dock (nav bar) — continuous morph, like the web
 
-    /// How far (points) the stats section grows when fully expanded, and how far
-    /// you drag to get there.
-    private let statsHeight: CGFloat = 78
+    // Morph geometry (points).
+    private let topPad: CGFloat = 12
+    private let botPad: CGFloat = 10
+    private let statsH: CGFloat = 84      // stats band height when open
+    private let iconH: CGFloat = 46       // icon glyph row height
+    private let labelH: CGFloat = 18      // label height when open
+    private let goH0: CGFloat = 50        // collapsed pill height
+    private let goH1: CGFloat = 58        // expanded bar height
+    private let goW0: CGFloat = 138       // collapsed pill width
+    private let dragRange: CGFloat = 150  // drag distance for a full morph
+
+    private func lerp(_ a: CGFloat, _ b: CGFloat, _ t: CGFloat) -> CGFloat { a + (b - a) * t }
+
+    /// Five icons: collapsed x-fraction (flanking the centred Поехали) → expanded
+    /// x-fraction (evenly spread). Туман only appears when open.
+    private var dockItems: [DockItem] {
+        [
+            .init(icon: "magnifyingglass", label: "Поиск",  x0: 0.09, x1: 0.10, action: { sheet = .search }),
+            .init(icon: "book",           label: "Дневник", x0: 0.24, x1: 0.30, action: { sheet = .journal }),
+            .init(icon: "trophy",         label: "Трофеи",  x0: 0.76, x1: 0.50, action: { sheet = .trophies }),
+            .init(icon: "safari",         label: "Компас",  x0: 0.91, x1: 0.70, action: { sheet = .profile }),
+            .init(icon: "cloud",          label: "Туман",   x0: 0.90, x1: 0.90, fadeIn: true, action: { map.toggleFog() }),
+        ]
+    }
+
+    private func dockHeight(_ p: CGFloat) -> CGFloat {
+        topPad + statsH * p + (iconH + labelH * p) + (goH1 + 12) * p + botPad
+    }
 
     private var dock: some View {
-        VStack(spacing: 0) {
-            // Stats reveal continuously with the drag — height + opacity track
-            // dockProgress (0…1) so the dock morphs under the finger.
-            dockStats
-                .frame(height: statsHeight * dockProgress, alignment: .top)
-                .opacity(dockProgress)
-                .clipped()
-                .padding(.bottom, 12 * dockProgress)
+        let p = dockProgress
+        return GeometryReader { geo in
+            let W = geo.size.width
+            ZStack {
+                // Stats band (fades/scales in at the top).
+                dockStats
+                    .frame(width: W - 24)
+                    .opacity(p)
+                    .position(x: W / 2, y: topPad + statsH * p / 2)
 
-            HStack(spacing: 4) {
-                dockIcon(.search)
-                dockIcon(.journal)
-                Spacer(minLength: 4)
-                rideButton
-                Spacer(minLength: 4)
-                dockIcon(.trophies)
-                dockIcon(.profile)
+                // Icons — positions interpolate; labels fade in.
+                ForEach(dockItems) { item in
+                    dockIconView(item, p: p)
+                        .position(x: lerp(item.x0, item.x1, p) * W,
+                                  y: topPad + statsH * p + (iconH + labelH * p) / 2)
+                }
+
+                // «Поехали» morphs from a centred pill to a full-width bottom bar.
+                goButton(width: lerp(goW0, W - 24, p), height: lerp(goH0, goH1, p))
+                    .position(x: W / 2,
+                              y: lerp(topPad + iconH / 2, dockHeight(p) - botPad - goH1 / 2, p))
             }
+            .frame(width: W, height: dockHeight(p))
         }
-        .padding(.horizontal, 12)
-        .padding(.top, 12)
-        .padding(.bottom, 10)
+        .frame(height: dockHeight(p))
         .background(
             RoundedRectangle(cornerRadius: 30, style: .continuous)
                 .fill(.ultraThinMaterial)
@@ -179,8 +219,7 @@ struct MapScreen: View {
             RoundedRectangle(cornerRadius: 30, style: .continuous)
                 .strokeBorder(.white.opacity(0.5), lineWidth: 1)
         )
-        // Grabber floats above the dock (like the web's pull-tab) and drives
-        // the morph.
+        .clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
         .overlay(alignment: .top) { grabber.offset(y: -15) }
         .gesture(dockDrag)
     }
@@ -197,11 +236,10 @@ struct MapScreen: View {
             .onTapGesture { snapDock(dockProgress > 0.5 ? 0 : 1) }
     }
 
-    /// Interactive morph: progress follows the finger, snaps open/closed on release.
     private var dockDrag: some Gesture {
         DragGesture(minimumDistance: 0)
             .onChanged { v in
-                dockProgress = min(1, max(0, dragStart - v.translation.height / statsHeight))
+                dockProgress = min(1, max(0, dragStart - v.translation.height / dragRange))
             }
             .onEnded { v in
                 let open = v.predictedEndTranslation.height < -40 || dockProgress > 0.5
@@ -211,7 +249,7 @@ struct MapScreen: View {
 
     private func snapDock(_ target: CGFloat) {
         dragStart = target
-        withAnimation(.spring(response: 0.34, dampingFraction: 0.85)) { dockProgress = target }
+        withAnimation(.spring(response: 0.36, dampingFraction: 0.85)) { dockProgress = target }
     }
 
     private var dockStats: some View {
@@ -224,28 +262,36 @@ struct MapScreen: View {
 
     private func stat(_ value: String, _ label: String) -> some View {
         VStack(spacing: 2) {
-            Text(value).font(.title3.bold()).foregroundStyle(accent)
+            Text(value).font(.title2.bold()).foregroundStyle(accent)
             Text(label).font(.caption).foregroundStyle(ink.opacity(0.7))
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 12)
+        .padding(.vertical, 14)
         .background(RoundedRectangle(cornerRadius: 16, style: .continuous)
-            .fill(.white.opacity(0.55)))
+            .fill(.white.opacity(0.5)))
     }
 
-    private func dockIcon(_ target: DockSheet) -> some View {
-        Button {
-            sheet = target
-        } label: {
-            Image(systemName: target.icon)
-                .font(.system(size: 21, weight: .medium))
-                .foregroundStyle(ink)
-                .frame(width: 44, height: 44)
-                .contentShape(Rectangle())
+    private func dockIconView(_ item: DockItem, p: CGFloat) -> some View {
+        Button(action: item.action) {
+            VStack(spacing: 3) {
+                Image(systemName: item.icon)
+                    .font(.system(size: 21, weight: .medium))
+                    .foregroundStyle(ink)
+                Text(item.label)
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(ink.opacity(0.75))
+                    .fixedSize()
+                    .frame(height: labelH * p)
+                    .opacity(p)
+            }
+            .frame(width: 60)
+            .contentShape(Rectangle())
         }
+        .opacity(item.fadeIn ? p : 1)
+        .allowsHitTesting(item.fadeIn ? p > 0.5 : true)
     }
 
-    private var rideButton: some View {
+    private func goButton(width: CGFloat, height: CGFloat) -> some View {
         Button(action: model.toggleRide) {
             Label(model.riding ? "Стоп" : "Поехали",
                   systemImage: model.riding ? "stop.fill" : "play.fill")
@@ -253,8 +299,7 @@ struct MapScreen: View {
                 .lineLimit(1)
                 .fixedSize()
                 .foregroundStyle(.white)
-                .padding(.horizontal, 24)
-                .padding(.vertical, 14)
+                .frame(width: width, height: height)
                 .background(Capsule().fill(model.riding ? Color.red.opacity(0.85) : accent))
                 .shadow(color: accent.opacity(0.4), radius: 12, y: 5)
         }
