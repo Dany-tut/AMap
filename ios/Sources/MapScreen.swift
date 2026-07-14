@@ -161,8 +161,9 @@ struct MapScreen: View {
     // MARK: Bottom dock (nav bar) — continuous morph, like the web
 
     // Morph geometry (points).
-    private let topPad: CGFloat = 12
-    private let botPad: CGFloat = 10
+    private let topPad: CGFloat = 16
+    private let botPad: CGFloat = 16
+    private let sidePad: CGFloat = 16   // gap from the dock edge to inner content
     private let statsH: CGFloat = 84      // stats band height when open
     private let iconH: CGFloat = 46       // icon glyph row height
     private let labelH: CGFloat = 18      // label height when open
@@ -205,7 +206,7 @@ struct MapScreen: View {
             ZStack {
                 // Stats band (fades/scales in at the top).
                 dockStats
-                    .frame(width: W - 24)
+                    .frame(width: W - sidePad * 2)
                     .opacity(p)
                     .position(x: W / 2, y: topPad + statsH * p / 2)
 
@@ -217,7 +218,7 @@ struct MapScreen: View {
                 }
 
                 // «Поехали» morphs from a centred pill to a full-width bottom bar.
-                goButton(width: lerp(goW0, W - 24, p), height: lerp(goH0, goH1, p))
+                goButton(width: lerp(goW0, W - sidePad * 2, p), height: lerp(goH0, goH1, p))
                     .position(x: W / 2,
                               y: lerp(topPad + iconH / 2, dockHeight(p) - botPad - goH1 / 2, p))
             }
@@ -291,8 +292,9 @@ struct MapScreen: View {
             Text(label).font(.caption).foregroundStyle(ink.opacity(0.7))
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 14)
-        .background(RoundedRectangle(cornerRadius: 16, style: .continuous)
+        .padding(.vertical, 16)
+        // Concentric with the dock: inner radius = outer radius − the gap.
+        .background(RoundedRectangle(cornerRadius: dockCorner - sidePad, style: .continuous)
             .fill(.white.opacity(0.5)))
     }
 
