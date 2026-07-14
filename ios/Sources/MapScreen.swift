@@ -7,7 +7,9 @@ struct MapScreen: View {
 
     var body: some View {
         ZStack {
-            MapLibreView(center: model.center)
+            MapLibreView(center: model.center,
+                         fogOuter: model.fogOuter,
+                         fogHoles: model.fogHoles)
                 .ignoresSafeArea()
 
             VStack(spacing: 9) {
