@@ -40,6 +40,7 @@ struct MapScreen: View {
     @EnvironmentObject var model: AppModel
     @StateObject private var map = MapController()
     @State private var sheet: DockSheet?
+    @State private var showRegions = false
 
     var body: some View {
         ZStack {
@@ -82,24 +83,31 @@ struct MapScreen: View {
             .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
         }
+        .sheet(isPresented: $showRegions) {
+            RegionSheet(model: model, map: map)
+                .presentationDetents([.medium])
+                .presentationDragIndicator(.visible)
+        }
     }
 
     // MARK: Top pills
 
     private var regionPill: some View {
-        HStack(spacing: 5) {
-            Text("🗺️")
-            Text(model.regionName).fontWeight(.semibold).foregroundStyle(ink)
-            Text("·").foregroundStyle(.secondary)
-            Text("\(model.coveragePercent)%").fontWeight(.bold).foregroundStyle(accent)
-            Text("открыто").foregroundStyle(ink)
-            Image(systemName: "chevron.down")
-                .font(.system(size: 11, weight: .bold))
-                .foregroundStyle(.secondary)
+        Button { showRegions = true } label: {
+            HStack(spacing: 5) {
+                Text("🗺️")
+                Text(model.regionName).fontWeight(.semibold).foregroundStyle(ink)
+                Text("·").foregroundStyle(.secondary)
+                Text("\(model.coveragePercent)%").fontWeight(.bold).foregroundStyle(accent)
+                Text("открыто").foregroundStyle(ink)
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(.secondary)
+            }
+            .lineLimit(1)
+            .fixedSize()
+            .pillStyle()
         }
-        .lineLimit(1)
-        .fixedSize()
-        .pillStyle()
     }
 
     /// Auto-detected activity (CoreMotion). Tap to override / demo.
@@ -189,6 +197,44 @@ struct MapScreen: View {
                 .frame(width: 46, height: 46)
                 .background(Circle().fill(.white.opacity(0.92)))
                 .shadow(color: .black.opacity(0.16), radius: 8, y: 3)
+        }
+    }
+}
+
+/// City switcher — pick a region, fly there, update the pill.
+struct RegionSheet: View {
+    @ObservedObject var model: AppModel
+    let map: MapController
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Text("Города")
+                .font(.headline).foregroundStyle(ink)
+                .padding(.top, 22).padding(.bottom, 8)
+
+            List(AppModel.regions) { r in
+                Button {
+                    model.selectRegion(r)
+                    map.recenter(on: r.center)
+                    dismiss()
+                } label: {
+                    HStack(spacing: 10) {
+                        Text(r.emoji).font(.title3)
+                        Text(r.name).foregroundStyle(.primary)
+                        Spacer()
+                        Text(r.coverage > 0 ? "\(r.coverage)%" : "—")
+                            .fontWeight(.semibold)
+                            .foregroundStyle(r.name == model.regionName ? accent : .secondary)
+                        if r.name == model.regionName {
+                            Image(systemName: "checkmark").foregroundStyle(accent)
+                        }
+                    }
+                    .contentShape(Rectangle())
+                }
+                .listRowSeparator(.hidden)
+            }
+            .listStyle(.plain)
         }
     }
 }

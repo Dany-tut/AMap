@@ -5,10 +5,37 @@ import AMapsFog
 import AMapsStorage
 import AMapsTracking
 
+/// A switchable demo city.
+struct DemoRegion: Identifiable {
+    let id: String
+    let name: String
+    let emoji: String
+    let center: Coordinate
+    let coverage: Int
+}
+
 /// UI-facing state for the map screen. Owns the composition root and drives
 /// the live session. Mirrors the web prototype's Danang demo.
 @MainActor
 final class AppModel: ObservableObject {
+    /// Downloadable regions (bbox/fog are demo-only for now; only Danang is
+    /// explored). Real bbox comes from Nominatim/OSM later.
+    static let regions: [DemoRegion] = [
+        .init(id: "danang", name: "Дананг", emoji: "🏖",
+              center: .init(latitude: 16.0678, longitude: 108.2208), coverage: 15),
+        .init(id: "hoian", name: "Хойан", emoji: "🏮",
+              center: .init(latitude: 15.8801, longitude: 108.3380), coverage: 0),
+        .init(id: "hanoi", name: "Ханой", emoji: "🏛",
+              center: .init(latitude: 21.0278, longitude: 105.8342), coverage: 0),
+        .init(id: "bangkok", name: "Бангкок", emoji: "🛺",
+              center: .init(latitude: 13.7563, longitude: 100.5018), coverage: 0),
+    ]
+
+    func selectRegion(_ r: DemoRegion) {
+        regionName = r.name
+        coveragePercent = r.coverage
+    }
+
     @Published var regionName = "Дананг"
     @Published var coveragePercent = 15
     @Published var cellCount = 0
