@@ -9,6 +9,7 @@ struct MapLibreView: UIViewRepresentable {
     let center: Coordinate
     let fogOuter: [Coordinate]
     let fogHoles: [[Coordinate]]
+    var controller: MapController?
 
     func makeCoordinator() -> Coordinator { Coordinator() }
 
@@ -21,6 +22,7 @@ struct MapLibreView: UIViewRepresentable {
         map.compassView.isHidden = true
         map.delegate = context.coordinator
         context.coordinator.map = map
+        controller?.map = map
         return map
     }
 
