@@ -52,7 +52,6 @@ struct MapScreen: View {
             VStack(spacing: 0) {
                 HStack(spacing: 8) {
                     regionPill
-                    cellsPill
                     activityPill
                     Spacer(minLength: 0)
                 }
@@ -89,18 +88,17 @@ struct MapScreen: View {
 
     private var regionPill: some View {
         HStack(spacing: 5) {
-            Text("🗺️ \(model.regionName) · ").foregroundStyle(ink)
-            Text("\(model.coveragePercent)% открыто").foregroundStyle(accent)
+            Text("🗺️")
+            Text(model.regionName).fontWeight(.semibold).foregroundStyle(ink)
+            Text("·").foregroundStyle(.secondary)
+            Text("\(model.coveragePercent)%").fontWeight(.bold).foregroundStyle(accent)
+            Text("открыто").foregroundStyle(ink)
+            Image(systemName: "chevron.down")
+                .font(.system(size: 11, weight: .bold))
+                .foregroundStyle(.secondary)
         }
-        .pillStyle()
-    }
-
-    private var cellsPill: some View {
-        HStack(spacing: 5) {
-            Text("🔥")
-            Text("\(model.cellCount)").foregroundStyle(accent)
-            Text("ячеек").foregroundStyle(ink)
-        }
+        .lineLimit(1)
+        .fixedSize()
         .pillStyle()
     }
 
@@ -111,6 +109,8 @@ struct MapScreen: View {
                 Text(model.activity.emoji)
                 Text(model.activity.label).foregroundStyle(ink)
             }
+            .lineLimit(1)
+            .fixedSize()
             .pillStyle()
         }
     }
