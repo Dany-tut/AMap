@@ -238,15 +238,17 @@ struct MapScreen: View {
             .fill(Color(white: 0.68))
             .frame(width: 42, height: 6)
             .frame(maxWidth: .infinity)
-            .padding(.top, 6)
-            .padding(.bottom, 14)
+            .padding(.top, 7)
+            .padding(.bottom, 8)
             .contentShape(Rectangle())
             .gesture(dockDrag)
             .onTapGesture { snapDock(dockProgress > 0.5 ? 0 : 1) }
     }
 
+    /// Global coordinate space — the grabber moves up as the dock grows, so a
+    /// local translation would feed back on itself and make the morph judder.
     private var dockDrag: some Gesture {
-        DragGesture(minimumDistance: 0)
+        DragGesture(minimumDistance: 0, coordinateSpace: .global)
             .onChanged { v in
                 dockProgress = min(1, max(0, dragStart - v.translation.height / dragRange))
             }
