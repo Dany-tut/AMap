@@ -42,8 +42,11 @@ struct MapScreen: View {
     @State private var sheet: DockSheet?
     @State private var showRegions = false
 
+    /// Equal inset for the floating dock — left, right and bottom all use this.
+    private let dockMargin: CGFloat = 22
+
     var body: some View {
-        ZStack {
+        ZStack(alignment: .bottom) {
             MapLibreView(center: model.center,
                          fogOuter: model.fogOuter,
                          fogHoles: model.fogHoles,
@@ -66,13 +69,15 @@ struct MapScreen: View {
                     rightStack
                 }
                 .padding(.horizontal, 14)
-                .padding(.bottom, 12)
-
-                dock
-                    .padding(.horizontal, 12)
-                    .padding(.bottom, 8)
             }
+            .padding(.bottom, 96)   // keep the right stack above the dock
+
+            // Floating dock — equal margins from the screen edges.
+            dock
+                .padding(.horizontal, dockMargin)
+                .padding(.bottom, dockMargin)
         }
+        .ignoresSafeArea(.container, edges: .bottom)
         .sheet(item: $sheet) { s in
             Group {
                 switch s {
