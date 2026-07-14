@@ -53,9 +53,14 @@ struct MapScreen: View {
             }
         }
         .sheet(item: $sheet) { s in
-            DockSheetView(sheet: s)
-                .presentationDetents([.medium, .large])
-                .presentationDragIndicator(.visible)
+            Group {
+                switch s {
+                case .search: SearchSheet(map: map)
+                default: DockSheetView(sheet: s)
+                }
+            }
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
         }
     }
 
