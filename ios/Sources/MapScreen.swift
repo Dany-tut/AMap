@@ -41,7 +41,8 @@ struct MapScreen: View {
     @StateObject private var map = MapController()
     @State private var sheet: DockSheet?
     @State private var showRegions = false
-    @State private var dockExpanded = false
+    @State private var dockProgress: CGFloat = 0   // 0 collapsed … 1 expanded
+    @State private var dragStart: CGFloat = 0
 
     /// Equal inset for the floating dock — left, right and bottom all use this.
     private let dockMargin: CGFloat = 22
@@ -142,16 +143,19 @@ struct MapScreen: View {
 
     // MARK: Bottom dock (nav bar)
 
+    /// How far (points) the stats section grows when fully expanded, and how far
+    /// you drag to get there.
+    private let statsHeight: CGFloat = 78
+
     private var dock: some View {
         VStack(spacing: 0) {
-            grabber
-
-            if dockExpanded {
-                dockStats
-                    .padding(.top, 4)
-                    .padding(.bottom, 12)
-                    .transition(.opacity.combined(with: .move(edge: .bottom)))
-            }
+            // Stats reveal continuously with the drag — height + opacity track
+            // dockProgress (0…1) so the dock morphs under the finger.
+            dockStats
+                .frame(height: statsHeight * dockProgress, alignment: .top)
+                .opacity(dockProgress)
+                .clipped()
+                .padding(.bottom, 12 * dockProgress)
 
             HStack(spacing: 4) {
                 dockIcon(.search)
@@ -164,6 +168,7 @@ struct MapScreen: View {
             }
         }
         .padding(.horizontal, 12)
+        .padding(.top, 12)
         .padding(.bottom, 10)
         .background(
             RoundedRectangle(cornerRadius: 30, style: .continuous)
@@ -174,31 +179,39 @@ struct MapScreen: View {
             RoundedRectangle(cornerRadius: 30, style: .continuous)
                 .strokeBorder(.white.opacity(0.5), lineWidth: 1)
         )
+        // Grabber floats above the dock (like the web's pull-tab) and drives
+        // the morph.
+        .overlay(alignment: .top) { grabber.offset(y: -15) }
+        .gesture(dockDrag)
     }
 
-    /// Drag handle — pull up to reveal ride stats, pull down to collapse.
+    /// Floating pull-tab above the dock.
     private var grabber: some View {
         Capsule()
-            .fill(Color.secondary.opacity(0.4))
-            .frame(width: 38, height: 5)
-            .frame(maxWidth: .infinity)
-            .padding(.top, 9)
-            .padding(.bottom, 5)
+            .fill(Color(white: 0.62))
+            .frame(width: 42, height: 6)
+            .padding(.horizontal, 26)
+            .padding(.vertical, 12)
             .contentShape(Rectangle())
-            .onTapGesture { setDock(!dockExpanded) }
-            .gesture(
-                DragGesture(minimumDistance: 6)
-                    .onEnded { v in
-                        if v.translation.height < -20 { setDock(true) }
-                        else if v.translation.height > 20 { setDock(false) }
-                    }
-            )
+            .gesture(dockDrag)
+            .onTapGesture { snapDock(dockProgress > 0.5 ? 0 : 1) }
     }
 
-    private func setDock(_ expanded: Bool) {
-        withAnimation(.spring(response: 0.42, dampingFraction: 0.86)) {
-            dockExpanded = expanded
-        }
+    /// Interactive morph: progress follows the finger, snaps open/closed on release.
+    private var dockDrag: some Gesture {
+        DragGesture(minimumDistance: 0)
+            .onChanged { v in
+                dockProgress = min(1, max(0, dragStart - v.translation.height / statsHeight))
+            }
+            .onEnded { v in
+                let open = v.predictedEndTranslation.height < -40 || dockProgress > 0.5
+                snapDock(open ? 1 : 0)
+            }
+    }
+
+    private func snapDock(_ target: CGFloat) {
+        dragStart = target
+        withAnimation(.spring(response: 0.34, dampingFraction: 0.85)) { dockProgress = target }
     }
 
     private var dockStats: some View {
