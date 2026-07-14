@@ -36,6 +36,46 @@ final class AppModel: ObservableObject {
         coveragePercent = r.coverage
     }
 
+    // MARK: Trophies (data-driven, evaluated by the core AchievementEngine)
+
+    private static let trophyIcons: [String: String] = [
+        "first_cells": "👣", "explorer": "🧭", "cartographer": "🗺️",
+        "danang_quarter": "🌇", "streak_3": "🔥", "foodie": "🍜",
+    ]
+
+    private static let achievementCatalog: [Achievement] = [
+        .init(id: "first_cells", title: "Первые шаги",
+              details: "Открой 5 ячеек", condition: .cellsOpened(5)),
+        .init(id: "explorer", title: "Исследователь",
+              details: "Открой 25 ячеек", condition: .cellsOpened(25)),
+        .init(id: "cartographer", title: "Картограф",
+              details: "Открой 100 ячеек", condition: .cellsOpened(100)),
+        .init(id: "danang_quarter", title: "Свой в Дананге",
+              details: "Открой 25% Дананга", condition: .cityCoverage(city: "danang", fraction: 0.25)),
+        .init(id: "streak_3", title: "Три дня подряд",
+              details: "Катайся 3 дня подряд", condition: .streakDays(3)),
+        .init(id: "foodie", title: "Гурман",
+              details: "Загляни в кафе", condition: .visitedCategory("food")),
+    ]
+
+    var progressSnapshot: ProgressSnapshot {
+        ProgressSnapshot(
+            totalCellsOpened: cellCount,
+            cityCoverage: ["danang": Double(coveragePercent) / 100],
+            visitedCategories: [], sessionCount: 0, longestStreakDays: 0)
+    }
+
+    var trophies: [TrophyItem] {
+        let snap = progressSnapshot
+        return Self.achievementCatalog.map { a in
+            TrophyItem(id: a.id, icon: Self.trophyIcons[a.id] ?? "🏆",
+                       title: a.title, details: a.details,
+                       unlocked: a.isSatisfied(by: snap))
+        }
+    }
+
+    var unlockedTrophyCount: Int { trophies.filter(\.unlocked).count }
+
     @Published var regionName = "Дананг"
     @Published var coveragePercent = 15
     @Published var cellCount = 0

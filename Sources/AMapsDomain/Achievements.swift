@@ -27,6 +27,13 @@ public struct Achievement: Identifiable, Codable, Sendable {
     public let details: String
     public let condition: Condition
 
+    public init(id: String, title: String, details: String, condition: Condition) {
+        self.id = id
+        self.title = title
+        self.details = details
+        self.condition = condition
+    }
+
     public enum Condition: Codable, Sendable {
         case cellsOpened(Int)
         case cityCoverage(city: String, fraction: Double)

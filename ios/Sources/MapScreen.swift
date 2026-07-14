@@ -95,6 +95,7 @@ struct MapScreen: View {
             Group {
                 switch s {
                 case .search: SearchSheet(map: map)
+                case .trophies: TrophySheet(trophies: model.trophies)
                 default: DockSheetView(sheet: s)
                 }
             }
@@ -267,7 +268,7 @@ struct MapScreen: View {
         HStack(spacing: 8) {
             stat("\(model.coveragePercent)%", "открыто")
             stat("\(model.cellCount)", "ячеек")
-            stat("0", "трофеев")
+            stat("\(model.unlockedTrophyCount)", "трофеев")
         }
     }
 
