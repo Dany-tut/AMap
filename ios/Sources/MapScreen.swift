@@ -60,7 +60,7 @@ struct MapScreen: View {
     /// Dock inset shrinks as it expands: a slimmer bar collapsed, nearly
     /// edge-to-edge when open. Corner radius grows toward the iPhone's own
     /// screen curvature so the open dock reads as concentric with the device.
-    private var dockMargin: CGFloat { lerp(26, 11, dockProgress) }
+    private var dockMargin: CGFloat { lerp(30, 11, dockProgress) }
     private var dockCorner: CGFloat { lerp(30, 52, dockProgress) }
 
     var body: some View {
@@ -226,12 +226,15 @@ struct MapScreen: View {
         .frame(height: dockHeight(p))
         .background(
             ZStack {
-                // Translucent floating glass when collapsed; densifies into a
-                // sheet-like frosted panel as it opens (matches the system sheet).
+                // Native frosted glass, crossfading from thin (light floating bar)
+                // to thick (dense system-sheet panel) as it opens — real blur,
+                // not a flat white fill.
                 RoundedRectangle(cornerRadius: dockCorner, style: .continuous)
                     .fill(.ultraThinMaterial)
+                    .opacity(1 - dockProgress)
                 RoundedRectangle(cornerRadius: dockCorner, style: .continuous)
-                    .fill(Color.white.opacity(0.55 * dockProgress))
+                    .fill(.thickMaterial)
+                    .opacity(dockProgress)
             }
             .shadow(color: .black.opacity(0.18), radius: 22, y: 12)
         )
