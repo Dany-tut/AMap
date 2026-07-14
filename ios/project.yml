@@ -1,0 +1,49 @@
+name: AMaps
+options:
+  bundleIdPrefix: com.amaps
+  deploymentTarget:
+    iOS: "17.0"
+  createIntermediateGroups: true
+packages:
+  AMaps:
+    path: ..
+  MapLibre:
+    url: https://github.com/maplibre/maplibre-gl-native-distribution
+    from: 6.0.0
+targets:
+  AMaps:
+    type: application
+    platform: iOS
+    sources:
+      - Sources
+    info:
+      path: Sources/Info.plist
+      properties:
+        CFBundleDisplayName: AMaps
+        CFBundleShortVersionString: "0.1"
+        CFBundleVersion: "1"
+        UILaunchScreen: {}
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
+        NSLocationWhenInUseUsageDescription: "AMaps раскрывает карту там, где вы побывали."
+        NSLocationAlwaysAndWhenInUseUsageDescription: "AMaps фиксирует пройденные улицы, даже когда приложение свёрнуто."
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+    dependencies:
+      - package: AMaps
+        product: AMapsApp
+      - package: AMaps
+        product: AMapsDomain
+      - package: AMaps
+        product: AMapsFog
+      - package: AMaps
+        product: AMapsTracking
+      - package: AMaps
+        product: AMapsStorage
+      - package: MapLibre
+    settings:
+      base:
+        TARGETED_DEVICE_FAMILY: 1
+        PRODUCT_BUNDLE_IDENTIFIER: com.amaps.app
+        MARKETING_VERSION: "0.1"
+        SWIFT_VERSION: "6.0"
