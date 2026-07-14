@@ -339,7 +339,6 @@
   <div id="top">
     <div id="searchRow">
       <input id="q" placeholder="Найти место или адрес…" autocomplete="off" />
-      <button class="round" id="me" title="Моё местоположение">◎</button>
     </div>
     <div id="pills">
       <div class="pill" id="regionPill">🗺️ <span id="regionName">Дананг</span> · <b id="cov">—</b> <span style="color:#b8b3c8;font-weight:700">▾</span></div>
@@ -1121,7 +1120,6 @@
           { enableHighAccuracy: true, timeout: 8000 }
         );
       }
-      document.getElementById('me').onclick = locateMe;
       document.getElementById('locBtn').onclick = locateMe;
 
       // ── Search (OSM Nominatim geocoder) ──
