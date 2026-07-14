@@ -207,7 +207,7 @@
     #dock.dragging { transition: transform .45s cubic-bezier(.22,1,.36,1); }  /* no --p easing while finger is down */
     #dock.gone { transform: translateY(200%); }
     #dockGrab { display: flex; justify-content: center; align-items: center; height: 26px;
-      margin-bottom: 6px; cursor: grab; touch-action: none; }
+      margin-bottom: 16px; cursor: grab; touch-action: none; }
     #dockGrab::before { content: ''; width: 38px; height: 5px; border-radius: 3px;
       background: color-mix(in srgb, #cbc6db, #b3aecb calc(var(--p) * 100%)); }
     /* stats */
