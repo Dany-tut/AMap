@@ -87,7 +87,7 @@ struct MapScreen: View {
                 }
                 .padding(.trailing, 30)   // align with the collapsed dock's right edge
             }
-            .padding(.bottom, 96)   // keep the right stack above the dock
+            .padding(.bottom, 140)   // keep the right stack clear of the taller dock
 
             // Floating dock — equal margins from the screen edges.
             dock
