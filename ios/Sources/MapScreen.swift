@@ -228,12 +228,11 @@ struct MapScreen: View {
         .frame(height: dockHeight(p))
         .background(
             ZStack {
-                // Native frosted glass, crossfading from thin (light floating bar)
-                // to thick (dense system-sheet panel) as it opens — real blur,
-                // not a flat white fill.
+                // Base is always a real frosted-glass material (keeps the blur at
+                // every state); a thicker material fades in on top as it opens so
+                // it densifies into a system-sheet panel.
                 RoundedRectangle(cornerRadius: dockCorner, style: .continuous)
-                    .fill(.ultraThinMaterial)
-                    .opacity(1 - dockProgress)
+                    .fill(.regularMaterial)
                 RoundedRectangle(cornerRadius: dockCorner, style: .continuous)
                     .fill(.thickMaterial)
                     .opacity(dockProgress)
