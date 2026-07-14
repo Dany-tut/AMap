@@ -207,26 +207,32 @@
     #dock.dragging { transition: transform .45s cubic-bezier(.22,1,.36,1); }  /* no --p easing while finger is down */
     #dock.gone { transform: translateY(200%); }
     #dockGrab { display: flex; justify-content: center; align-items: center; height: 26px;
-      cursor: grab; touch-action: none; }
+      margin-bottom: 6px; cursor: grab; touch-action: none; }
     #dockGrab::before { content: ''; width: 38px; height: 5px; border-radius: 3px;
       background: color-mix(in srgb, #cbc6db, #b3aecb calc(var(--p) * 100%)); }
     /* stats */
     #dockStats { display: flex; gap: 10px; overflow: hidden;
-      max-height: calc(88px * var(--p)); opacity: var(--p);
+      max-height: calc(88px * var(--p));
+      opacity: clamp(0, calc(var(--p) * 2.2 - 1), 1);
+      filter: blur(calc((1 - var(--p)) * 6px));
+      transform: translateY(calc((1 - var(--p)) * 8px));
       margin: calc(2px * var(--p)) calc(2px * var(--p)) calc(14px * var(--p)); }
     .dStat { flex: 1; background: rgba(124,108,240,0.09); border-radius: 16px; padding: 11px 6px; text-align: center; }
     .dStat .v { font-size: 22px; font-weight: 800; color: var(--accent); line-height: 1; }
     .dStat .l { font-size: 11px; color: #8b86a0; margin-top: 5px; font-weight: 700; }
     /* organ row — icons flank a spacer that holds the place of the Поехали
        pill; the spacer shrinks to 0 and Туман grows in as --p → 1 */
-    #dockRow { display: flex; flex-wrap: nowrap; align-items: flex-start; gap: 4px; }
+    #dockRow { display: flex; flex-wrap: nowrap; align-items: center; gap: 4px;
+      min-height: calc(50px + 4px * var(--p)); }
     .dItem { display: flex; flex-direction: column; align-items: center; gap: 3px;
       background: none; border: none; cursor: pointer; color: var(--ink); padding: 6px 2px; flex: 1 1 0; min-width: 0; }
     .dItem .ic { display: flex; align-items: center; justify-content: center; transition: transform .15s; }
     .dItem .ic svg { width: 25px; height: 25px; display: block; }
     .dItem:active .ic { transform: scale(0.82); }
     .dItem .lb { font-size: 10.5px; font-weight: 700; color: #8b86a0; white-space: nowrap;
-      max-height: calc(16px * var(--p)); opacity: var(--p); overflow: hidden; }
+      max-height: calc(16px * var(--p)); overflow: hidden;
+      opacity: clamp(0, calc(var(--p) * 2.2 - 1), 1);
+      filter: blur(calc((1 - var(--p)) * 3px)); }
     #dGoSlot { flex: 0 0 calc(146px * (1 - var(--p))); align-self: stretch; }
     #dItemFog { flex: var(--p) 1 0; max-width: calc(70px * var(--p)); opacity: var(--p);
       padding-left: 0; padding-right: 0; overflow: hidden; }
@@ -680,8 +686,8 @@
         // soft drop-shadow of the cloud sheet onto the map, along the inner edge
         map.addLayer({ id: 'fog-innershadow', type: 'line', source: 'area',
           layout: { 'line-join': 'round', 'line-cap': 'round' },
-          paint: { 'line-color': '#8ea0bd', 'line-width': 26, 'line-blur': 26, 'line-opacity': 0.28,
-                   'line-offset': 7 } });
+          paint: { 'line-color': '#8ea0bd', 'line-width': 14, 'line-blur': 14, 'line-opacity': 0.28,
+                   'line-offset': 4 } });
         map.addLayer({ id: 'fog-fill', type: 'fill', source: 'fog',
           paint: { 'fill-pattern': 'clouds', 'fill-opacity': 0.84 } });
 
@@ -690,8 +696,8 @@
         map.addLayer({ id: 'cloud-feather', type: 'line', source: 'area',
           layout: { 'line-join': 'round', 'line-cap': 'round' },
           paint: { 'line-color': '#eef4fb',
-                   'line-width': ['interpolate', ['linear'], ['zoom'], 12, 10, 16, 40, 18, 70],
-                   'line-blur':  ['interpolate', ['linear'], ['zoom'], 12, 12, 16, 44, 18, 80],
+                   'line-width': ['interpolate', ['linear'], ['zoom'], 12, 6, 16, 18, 18, 28],
+                   'line-blur':  ['interpolate', ['linear'], ['zoom'], 12, 8, 16, 20, 18, 34],
                    'line-opacity': 0.8 } });
 
         // (The fluffy scalloped rim now comes from the circle-chain corridor
