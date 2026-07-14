@@ -1050,6 +1050,14 @@
       });
       grab.style.touchAction = 'none';
 
+      // search open/close helper
+      window.closeSearch = () => {
+        $('searchRow').classList.remove('on');
+        $('top').classList.remove('searching');
+        $('q').blur();
+      };
+      map.on('click', () => closeSearch());
+
       // organ buttons proxy to the (now hidden) legacy controls
       $('dSearch').onclick = () => {
         collapseDock();
@@ -1149,8 +1157,8 @@
         } catch (e) { hint('Поиск недоступен (нет сети)'); }
       }
       document.getElementById('q').addEventListener('keydown', e => {
-        if (e.key === 'Enter') { search(); $('searchRow').classList.remove('on'); $('top').classList.remove('searching'); e.target.blur(); }
-        else if (e.key === 'Escape') { $('searchRow').classList.remove('on'); $('top').classList.remove('searching'); e.target.blur(); }
+        if (e.key === 'Enter') { search(); closeSearch(); }
+        else if (e.key === 'Escape') { closeSearch(); }
       });
     }
     boot();
