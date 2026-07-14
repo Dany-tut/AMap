@@ -250,8 +250,8 @@ struct MapScreen: View {
     /// dock body fought this one and made the morph judder).
     private var grabber: some View {
         Capsule()
-            .fill(Color(white: 0.68))
-            .frame(width: 42, height: 6)
+            .fill(Color(.systemGray3))          // match the native sheet drag indicator
+            .frame(width: 36, height: 5)
             .frame(maxWidth: .infinity)
             .padding(.top, 7)
             .padding(.bottom, 8)
