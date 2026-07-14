@@ -57,7 +57,11 @@ struct MapScreen: View {
     @State private var dragStart: CGFloat = 0
 
     /// Equal inset for the floating dock — left, right and bottom all use this.
-    private let dockMargin: CGFloat = 22
+    /// Dock inset shrinks as it expands: a slimmer bar collapsed, nearly
+    /// edge-to-edge when open. Corner radius grows toward the iPhone's own
+    /// screen curvature so the open dock reads as concentric with the device.
+    private var dockMargin: CGFloat { lerp(26, 11, dockProgress) }
+    private var dockCorner: CGFloat { lerp(30, 46, dockProgress) }
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -221,12 +225,12 @@ struct MapScreen: View {
         }
         .frame(height: dockHeight(p))
         .background(
-            RoundedRectangle(cornerRadius: 30, style: .continuous)
+            RoundedRectangle(cornerRadius: dockCorner, style: .continuous)
                 .fill(.ultraThinMaterial)
                 .shadow(color: .black.opacity(0.18), radius: 22, y: 12)
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 30, style: .continuous)
+            RoundedRectangle(cornerRadius: dockCorner, style: .continuous)
                 .strokeBorder(.white.opacity(0.5), lineWidth: 1)
         )
         .clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
