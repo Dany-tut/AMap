@@ -19,13 +19,14 @@
     /* ── top overlay ── */
     #top { position: absolute; top: 14px; left: 14px; right: 14px; z-index: 2;
            display: flex; flex-direction: column; gap: 9px; pointer-events: none; }
-    /* search overlaps the pills' spot and cross-fades with them */
-    #searchRow { position: absolute; top: 0; left: 0; right: 0; display: flex; gap: 9px;
-                 opacity: 0; transform: translateY(-6px); transition: opacity .28s, transform .28s;
+    /* search bar sits at the bottom, in place of the dock (nav bar) */
+    #searchRow { position: absolute; left: 12px; right: 12px; bottom: 12px; z-index: 5;
+                 display: flex; gap: 9px;
+                 opacity: 0; transform: translateY(10px); transition: opacity .28s, transform .28s;
                  pointer-events: none; }
     #searchRow.on { opacity: 1; transform: none; pointer-events: auto; }
-    #pills { transition: opacity .28s, transform .28s; }
-    #top.searching #pills { opacity: 0; transform: translateY(-6px); pointer-events: none; }
+    /* fade the dock out while searching */
+    #dock.searchHidden { opacity: 0; transform: translateY(12px); pointer-events: none; }
     #q { flex: 1; height: 44px; border: none; border-radius: 22px; padding: 0 18px;
          font-size: 15px; background: var(--card); color: var(--ink); font-weight: 500;
          box-shadow: 0 6px 20px rgba(60,50,90,0.16); outline: none;
@@ -208,7 +209,7 @@
       backdrop-filter: blur(22px) saturate(1.5); -webkit-backdrop-filter: blur(22px) saturate(1.5);
       border-radius: 30px; padding: 12px 12px calc(12px + 66px * var(--p));
       box-shadow: 0 14px 44px rgba(50,42,80,0.26);
-      transition: transform .45s cubic-bezier(.22,1,.36,1), --p .42s cubic-bezier(.22,1,.36,1); }
+      transition: transform .45s cubic-bezier(.22,1,.36,1), --p .42s cubic-bezier(.22,1,.36,1), opacity .28s; }
     #dock.expanded { --p: 1; }
     #dock.dragging { transition: transform .45s cubic-bezier(.22,1,.36,1); }  /* no --p easing while finger is down */
     #dock.gone { transform: translateY(200%); }
@@ -343,9 +344,6 @@
 <body>
   <div id="map"></div>
   <div id="top">
-    <div id="searchRow">
-      <input id="q" placeholder="Найти место или адрес…" autocomplete="off" />
-    </div>
     <div id="pills">
       <div class="pill" id="regionPill">🗺️ <span id="regionName">Дананг</span> · <b id="cov">—</b> <span style="color:#b8b3c8;font-weight:700">▾</span></div>
       <div class="pill">🔥 <b id="cnt">—</b> ячеек</div>
@@ -371,6 +369,11 @@
   </div>
 
   <button id="rideBtn">▶ Поехали</button>
+
+  <!-- Bottom search bar (replaces the dock while searching) -->
+  <div id="searchRow">
+    <input id="q" placeholder="Найти место или адрес…" autocomplete="off" />
+  </div>
 
   <!-- Bottom glass dock (morphs into a stats sheet on drag) -->
   <div id="dockScrim"></div>
@@ -1053,7 +1056,7 @@
       // search open/close helper
       window.closeSearch = () => {
         $('searchRow').classList.remove('on');
-        $('top').classList.remove('searching');
+        $('dock').classList.remove('searchHidden');
         $('q').blur();
       };
       map.on('click', () => closeSearch());
@@ -1063,7 +1066,7 @@
         collapseDock();
         const row = $('searchRow'), q = $('q');
         const open = row.classList.toggle('on');
-        $('top').classList.toggle('searching', open);
+        $('dock').classList.toggle('searchHidden', open);
         if (open) { q.focus(); } else { q.blur(); }
       };
       $('dJournal').onclick = () => { collapseDock(); $('journalBtn').click(); };
