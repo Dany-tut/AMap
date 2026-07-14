@@ -64,9 +64,11 @@ struct MapLibreView: UIViewRepresentable {
 
         private let sourceID = "fog"
         private let layerID = "fog-fill"
+        private let edgeID = "fog-edge"
 
         func mapView(_ mapView: MLNMapView, didFinishLoading style: MLNStyle) {
             self.style = style
+            style.setImage(CloudTexture.make(), forName: "clouds")
             rebuild()
         }
 
@@ -89,10 +91,25 @@ struct MapLibreView: UIViewRepresentable {
             let source = MLNShapeSource(identifier: sourceID, shape: feature, options: nil)
             style.addSource(source)
 
+            // Cloud body: procedural texture, slightly translucent so the map
+            // faintly glows through (the dreamy web look).
             let fill = MLNFillStyleLayer(identifier: layerID, source: source)
-            fill.fillColor = NSExpression(forConstantValue: UIColor.white)
-            fill.fillOpacity = NSExpression(forConstantValue: 0.92)
+            if style.image(forName: "clouds") != nil {
+                fill.fillPattern = NSExpression(forConstantValue: "clouds")
+            } else {
+                fill.fillColor = NSExpression(forConstantValue: UIColor.white)
+            }
+            fill.fillOpacity = NSExpression(forConstantValue: 0.9)
             style.addLayer(fill)
+
+            // Soft feathered edge: a blurred white line along every hole/outline
+            // so the corridor melts into the clouds instead of a hard cut.
+            let edge = MLNLineStyleLayer(identifier: edgeID, source: source)
+            edge.lineColor = NSExpression(forConstantValue: UIColor.white)
+            edge.lineWidth = NSExpression(forConstantValue: 7)
+            edge.lineBlur = NSExpression(forConstantValue: 9)
+            edge.lineOpacity = NSExpression(forConstantValue: 0.85)
+            style.addLayer(edge)
         }
 
         /// Builds one polygon feature: exterior cloud ring with each open cell
