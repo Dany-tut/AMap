@@ -89,7 +89,10 @@ struct MapScreen: View {
             }
             .padding(.bottom, 140)   // keep the right stack clear of the taller dock
 
-            // Floating dock — equal margins from the screen edges.
+            // Floating dock — one bar that morphs in place. While exploring it's
+            // the icon dock (Поиск · Поехали · Трофеи…); tapping «Поехали» morphs
+            // its contents into the ride bar (stats · Стоп · Заметка) at the same
+            // size, and «Стоп» morphs it back.
             dock
                 .padding(.horizontal, dockMargin)
                 .padding(.bottom, dockMargin)
@@ -100,7 +103,8 @@ struct MapScreen: View {
                 switch s {
                 case .search: SearchSheet(map: map)
                 case .trophies: TrophySheet(trophies: model.trophies)
-                default: DockSheetView(sheet: s)
+                case .journal: JournalSheet(model: model)
+                case .profile: ProfileSheet(model: model)
                 }
             }
             .presentationDetents([.medium, .large])
@@ -109,6 +113,14 @@ struct MapScreen: View {
         .sheet(isPresented: $showRegions) {
             RegionSheet(model: model, map: map)
                 .presentationDetents([.medium])
+                .presentationDragIndicator(.visible)
+        }
+        .sheet(item: $model.pendingPlace) { place in
+            PlaceCardSheet(
+                place: place,
+                onSave: { note, photo in model.saveMemory(note: note, photo: photo) },
+                onSkip: { model.skipPlace() })
+                .presentationDetents([.fraction(0.74), .large])
                 .presentationDragIndicator(.visible)
         }
     }
@@ -211,14 +223,32 @@ struct MapScreen: View {
                     .opacity(p)
                     .position(x: W / 2, y: topPad + statsH * p / 2)
 
-                // Icons — positions interpolate; labels fade in.
+                // Icons — positions interpolate; labels fade in. They fade away
+                // as the ride begins so the ride content can take their place.
                 ForEach(dockItems) { item in
                     dockIconView(item, p: p)
                         .position(x: lerp(item.x0, item.x1, p) * W,
                                   y: topPad + statsH * p + (iconH + labelH * p) / 2)
                 }
+                .opacity(1 - rideAmount)
+                .allowsHitTesting(!model.riding)
 
-                // «Поехали» morphs from a centred pill to a full-width bottom bar.
+                // Ride content — live stats on the left, «Заметка» on the right —
+                // cross-fades in over the icons, occupying the same collapsed row.
+                // A full-width HStack pins each side; the centre gap clears «Стоп».
+                HStack {
+                    rideStats
+                    Spacer(minLength: goW0 + 24)
+                    noteButton
+                }
+                .padding(.horizontal, sidePad + 2)
+                .frame(width: W, height: iconH)
+                .position(x: W / 2, y: topPad + iconH / 2)
+                .opacity(rideAmount)
+                .allowsHitTesting(model.riding)
+
+                // «Поехали» morphs from a centred pill to a full-width bottom bar
+                // when expanding, and recolours/relabels into «Стоп» on a ride.
                 goButton(width: lerp(goW0, W - sidePad * 2, p), height: lerp(goH0, goH1, p))
                     .position(x: W / 2,
                               y: lerp(topPad + iconH / 2, dockHeight(p) - botPad - goH1 / 2, p))
@@ -246,6 +276,44 @@ struct MapScreen: View {
         .clipShape(RoundedRectangle(cornerRadius: dockCorner, style: .continuous))
     }
 
+    /// 0 while exploring … 1 mid-ride. Drives the cross-fade between the icon row
+    /// and the ride content; animated because `toggleRide` is wrapped in a spring.
+    private var rideAmount: CGFloat { model.riding ? 1 : 0 }
+
+    /// Live stats shown on the left of the bar during a ride (activity · distance,
+    /// with cells below) — sits where the «Поиск / Дневник» icons were.
+    private var rideStats: some View {
+        VStack(alignment: .leading, spacing: 1) {
+            HStack(spacing: 5) {
+                Text(model.activity.emoji)
+                Text(String(format: "%.1f км", model.liveDistanceMeters / 1000))
+                    .font(.subheadline.bold()).foregroundStyle(ink)
+            }
+            Text("\(model.cellCount) ячеек")
+                .font(.caption).foregroundStyle(ink.opacity(0.6))
+        }
+        .lineLimit(1).fixedSize()
+    }
+
+    /// «Заметка» pill for ad-hoc points — sits where the right-hand icons were.
+    private var noteButton: some View {
+        Button(action: model.addManualPoint) {
+            Label("Заметка", systemImage: "mappin")
+                .font(.subheadline.weight(.semibold)).foregroundStyle(.white)
+                .lineLimit(1).fixedSize()
+                .padding(.horizontal, 14).padding(.vertical, 10)
+                .background(Capsule().fill(accent))
+        }
+    }
+
+    /// Start/stop a ride with the morph spring so the bar's contents animate.
+    private func toggleRideAnimated() {
+        withAnimation(.spring(response: 0.42, dampingFraction: 0.82)) {
+            dockProgress = 0          // collapse first — a ride uses the compact bar
+            model.toggleRide()
+        }
+    }
+
     /// Pull-tab above the glass — the only drag target (a second gesture on the
     /// dock body fought this one and made the morph judder).
     private var grabber: some View {
@@ -258,6 +326,8 @@ struct MapScreen: View {
             .contentShape(Rectangle())
             .gesture(dockDrag)
             .onTapGesture { snapDock(dockProgress > 0.5 ? 0 : 1) }
+            .opacity(1 - rideAmount)          // no expanding mid-ride
+            .allowsHitTesting(!model.riding)
     }
 
     /// Global coordinate space — the grabber moves up as the dock grows, so a
@@ -320,7 +390,7 @@ struct MapScreen: View {
     }
 
     private func goButton(width: CGFloat, height: CGFloat) -> some View {
-        Button(action: model.toggleRide) {
+        Button(action: toggleRideAnimated) {
             Label(model.riding ? "Стоп" : "Поехали",
                   systemImage: model.riding ? "stop.fill" : "play.fill")
                 .font(.headline)
@@ -386,27 +456,6 @@ struct RegionSheet: View {
 }
 
 /// Placeholder content for each dock destination until the real screens land.
-struct DockSheetView: View {
-    let sheet: DockSheet
-
-    var body: some View {
-        VStack(spacing: 14) {
-            Image(systemName: sheet.icon)
-                .font(.system(size: 40, weight: .semibold))
-                .foregroundStyle(accent)
-                .padding(.top, 40)
-            Text(sheet.rawValue)
-                .font(.title2.bold())
-                .foregroundStyle(ink)
-            Text("Скоро")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-            Spacer()
-        }
-        .frame(maxWidth: .infinity)
-    }
-}
-
 private extension View {
     func pillStyle() -> some View {
         self
